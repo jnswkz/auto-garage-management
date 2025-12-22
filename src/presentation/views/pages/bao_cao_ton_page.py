@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.style import STYLE
+from services import StockReportService
 
 
 class BaoCaoTonPage(QWidget):
@@ -31,6 +32,9 @@ class BaoCaoTonPage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setStyleSheet(STYLE)
+        
+        # Service xử lý báo cáo tồn kho (D1→D6)
+        self.service = StockReportService()
 
         self._setup_ui()
         self._init_default_month_year()
@@ -146,6 +150,7 @@ class BaoCaoTonPage(QWidget):
 
     # ---------------- Actions ----------------
     def _on_build_clicked(self):
+        """Xử lý D1 (input) → D6 (hiển thị) qua service."""
         year_text = self.inp_year.text().strip()
         if not year_text:
             QMessageBox.warning(self, "Thiếu thông tin", "Vui lòng nhập năm.")
@@ -154,9 +159,14 @@ class BaoCaoTonPage(QWidget):
         month = int(self.cb_month.currentText())
         year = int(year_text)
 
-        # UI-only: mock report data
-        rows = self._mock_inventory_report(month, year)
-        self._render(rows)
+        try:
+            # D1 → Service → D3 → D4 → D6
+            report = self.service.get_or_create_monthly_report(month, year)
+            self._render(report['items'])
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Lỗi", f"Không thể lập báo cáo:\n{str(e)}")
+            return
 
     def _on_clear_clicked(self):
         self._init_default_month_year()
@@ -170,23 +180,23 @@ class BaoCaoTonPage(QWidget):
         QMessageBox.information(self, "In báo cáo (demo)", "Chức năng in báo cáo tồn kho sẽ làm sau (QPrinter).")
 
     # ---------------- Render ----------------
-    def _render(self, rows: list[dict]):
+    def _render(self, items: list[dict]):
+        """Hiển thị dữ liệu báo cáo (D6)."""
         self.table.setRowCount(0)
 
-        for i, r in enumerate(rows, start=1):
+        for i, item in enumerate(items, start=1):
             row = self.table.rowCount()
             self.table.insertRow(row)
 
-            ton_cuoi = r["opening"] + r["in"] - r["out"]
-
+            # Data từ service: supply_name, begin_qty, issue_qty, end_qty
             self._set_item(row, 0, str(i), align_right=True)
-            self._set_item(row, 1, r["name"])
-            self._set_item(row, 2, str(r["opening"]), align_right=True)
-            self._set_item(row, 3, str(r["in"]), align_right=True)
-            self._set_item(row, 4, str(r["out"]), align_right=True)
-            self._set_item(row, 5, str(ton_cuoi), align_right=True)
+            self._set_item(row, 1, item["supply_name"])
+            self._set_item(row, 2, str(item["begin_qty"]), align_right=True)
+            self._set_item(row, 3, "0", align_right=True)  # Hệ thống không có Nhập
+            self._set_item(row, 4, str(item["issue_qty"]), align_right=True)
+            self._set_item(row, 5, str(item["end_qty"]), align_right=True)
 
-        self.lbl_count.setText(f"{len(rows)} dòng")
+        self.lbl_count.setText(f"{len(items)} dòng")
 
     def _set_item(self, row: int, col: int, text: str, align_right: bool = False):
         item = QTableWidgetItem(text)
@@ -197,20 +207,4 @@ class BaoCaoTonPage(QWidget):
         item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
         self.table.setItem(row, col, item)
 
-    # ---------------- Mock data ----------------
-    def _mock_inventory_report(self, month: int, year: int) -> list[dict]:
-        """
-        TODO (DB thật):
-        - opening: tồn cuối tháng trước
-        - in: tổng nhập trong tháng (phiếu nhập / phát sinh)
-        - out: tổng xuất trong tháng (dựa theo phiếu sửa chữa dùng vật tư)
-        """
-        seed = (year * 100 + month) % 5
 
-        base = [
-            {"name": "Dầu nhớt", "opening": 30 + seed * 2, "in": 20 + seed, "out": 25 + seed},
-            {"name": "Lọc gió", "opening": 18 + seed, "in": 10 + seed, "out": 12 + seed},
-            {"name": "Bugi", "opening": 40 + seed * 3, "in": 15 + seed, "out": 20 + seed},
-            {"name": "Má phanh", "opening": 12 + seed, "in": 6 + seed, "out": 5 + seed},
-        ]
-        return base

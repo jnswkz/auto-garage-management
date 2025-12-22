@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.style import STYLE
+from services import SystemSettingsService
 
 
 class ThayDoiQuyDinhPage(QWidget):
@@ -26,23 +27,41 @@ class ThayDoiQuyDinhPage(QWidget):
         super().__init__(parent)
         self.setStyleSheet(STYLE)
 
-        # UI-only mock data (sau này load từ DB PARAMETER, CAR_BRAND, SUPPLIES, WAGE)
-        self._brands = ["Toyota", "Honda", "Suzuki", "Ford", "Kia", "Hyundai"]
+        # Service xử lý quy định hệ thống
+        self.service = SystemSettingsService()
+        
+        # Data từ DB (sẽ load trong _load_from_db)
+        self._brands = []
         self._max_cars_per_day = 30
-        self._supplies = [
-            ("Dầu nhớt", 120000),
-            ("Lọc gió", 80000),
-            ("Bugi", 90000),
-        ]
-        self._wages = [
-            ("Thay dầu", 50000),
-            ("Vệ sinh lọc gió", 30000),
-            ("Kiểm tra tổng quát", 100000),
-        ]
+        self._supplies = []
+        self._wages = []
 
         self._setup_ui()
+        self._load_from_db()
         self._render_all()
 
+    # ---------------- Data Loading ----------------
+    def _load_from_db(self):
+        """Load dữ liệu từ database qua service."""
+        try:
+            # Load max cars per day
+            self._max_cars_per_day = self.service.get_max_cars_per_day()
+            
+            # Load brands
+            brands_data = self.service.get_all_brands()
+            self._brands = [b['name'] for b in brands_data]
+            
+            # Load supplies
+            supplies_data = self.service.get_all_supplies()
+            self._supplies = [(s['name'], int(s['price'])) for s in supplies_data]
+            
+            # Load wages
+            wages_data = self.service.get_all_wages()
+            self._wages = [(w['name'], int(w['value'])) for w in wages_data]
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Lỗi", f"Không thể load dữ liệu từ database:\n{str(e)}")
+    
     # ---------------- UI ----------------
     def _setup_ui(self):
         root = QVBoxLayout(self)
@@ -428,21 +447,41 @@ class ThayDoiQuyDinhPage(QWidget):
                 return
             wages.append((name, value))
 
-        # UI-only: commit to in-memory
-        self._max_cars_per_day = max_cars
-        self._brands = brands
-        self._supplies = supplies
-        self._wages = wages
-
-        QMessageBox.information(
-            self,
-            "OK",
-            "Đã áp dụng thay đổi thành công."
-        )
+        # Lưu vào database
+        try:
+            self.service.save_all_settings(max_cars, brands, supplies, wages)
+            
+            # Cập nhật lại in-memory sau khi lưu thành công
+            self._max_cars_per_day = max_cars
+            self._brands = brands
+            self._supplies = supplies
+            self._wages = wages
+            
+            QMessageBox.information(
+                self,
+                "Thành công",
+                "Đã áp dụng thay đổi và lưu vào database thành công."
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Lỗi",
+                f"Không thể lưu thay đổi vào database:\n{str(e)}"
+            )
 
     def _on_reset_clicked(self):
-        QMessageBox.information(self, "Hoàn tác (UI)", "UI demo: bạn có thể reload lại từ DB sau.")
-        self._render_all()
+        """Reload dữ liệu từ database."""
+        reply = QMessageBox.question(
+            self,
+            "Xác nhận hoàn tác",
+            "Bạn có chắc muốn hoàn tác các thay đổi và tải lại từ database?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            self._load_from_db()
+            self._render_all()
+            QMessageBox.information(self, "Thành công", "Đã tải lại dữ liệu từ database.")
 
     # ---------------- Helpers ----------------
     def _prompt_text(self, title: str, label: str):

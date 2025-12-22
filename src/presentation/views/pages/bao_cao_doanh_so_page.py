@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.style import STYLE
+from services.revenue_report_service import RevenueReportService
 
 
 class BaoCaoDoanhSoPage(QWidget):
@@ -31,6 +32,8 @@ class BaoCaoDoanhSoPage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setStyleSheet(STYLE)
+        
+        self.service = RevenueReportService()
 
         self._setup_ui()
         self._init_default_month_year()
@@ -153,10 +156,36 @@ class BaoCaoDoanhSoPage(QWidget):
 
         month = int(self.cb_month.currentText())
         year = int(year_text)
-
-        # UI-only mock data
-        data = self._mock_report(month, year)
-        self._render_report(data)
+        
+        try:
+            # Get or create report from database
+            report = self.service.get_or_create_monthly_report(month, year)
+            
+            # Transform data for rendering
+            data = [
+                {
+                    'brand': detail['brand_name'],
+                    'count': detail['count'],
+                    'amount': detail['total_money']
+                }
+                for detail in report['details']
+            ]
+            
+            self._render_report(data)
+            
+            if not data:
+                QMessageBox.information(
+                    self,
+                    "Thông báo",
+                    f"Không có dữ liệu sửa chữa trong tháng {month}/{year}."
+                )
+            
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Lỗi",
+                f"Không thể lập báo cáo: {str(e)}"
+            )
 
     def _on_clear_clicked(self):
         self._init_default_month_year()
@@ -202,20 +231,3 @@ class BaoCaoDoanhSoPage(QWidget):
 
     def _fmt_money(self, v: int) -> str:
         return f"{v:,}"
-
-    # ---------------- Mock data ----------------
-    def _mock_report(self, month: int, year: int) -> list[dict]:
-        # TODO: thay bằng query DB:
-        # group by brand: count repairs, sum money
-        seed = (year * 100 + month) % 7
-
-        base = [
-            {"brand": "Toyota", "count": 8 + seed, "amount": 12_500_000 + seed * 1_000_000},
-            {"brand": "Honda", "count": 5 + seed, "amount": 7_200_000 + seed * 800_000},
-            {"brand": "Ford", "count": 3 + seed, "amount": 9_800_000 + seed * 700_000},
-            {"brand": "Kia", "count": 6 + seed, "amount": 6_600_000 + seed * 600_000},
-        ]
-        # giả lập tháng ít dữ liệu
-        if seed in (0, 1):
-            base = base[:3]
-        return base
