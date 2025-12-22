@@ -30,7 +30,6 @@ logger = logging.getLogger(__name__)
 
 
 class TraCuuXePage(QWidget):
-    """BM3: Tra cứu xe (UI-only, mock data)."""
 
     PAGE_ID = "tra_cuu_xe"
 
@@ -58,7 +57,7 @@ class TraCuuXePage(QWidget):
         container_layout.setContentsMargins(18, 18, 18, 18)
         container_layout.setSpacing(12)
 
-        title = QLabel("TRA CỨU XE (BM3)")
+        title = QLabel("TRA CỨU XE")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setObjectName("pageTitle")
 

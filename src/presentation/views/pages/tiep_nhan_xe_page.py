@@ -25,11 +25,10 @@ logger = logging.getLogger(__name__)
 from utils.style import STYLE
 
 class BienNhanTiepNhanDialog(QDialog):
-    """Dialog preview 'Biên nhận tiếp nhận xe' theo BM1."""
 
     def __init__(self, data: dict, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Biên nhận tiếp nhận xe (BM1)")
+        self.setWindowTitle("Biên nhận tiếp nhận xe")
         self.setModal(True)
         self.resize(520, 420)
 
@@ -37,7 +36,7 @@ class BienNhanTiepNhanDialog(QDialog):
         root.setContentsMargins(16, 16, 16, 16)
         root.setSpacing(12)
 
-        title = QLabel("BIÊN NHẬN TIẾP NHẬN XE SỬA (BM1)")
+        title = QLabel("BIÊN NHẬN TIẾP NHẬN XE SỬA")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet("font-size: 16px; font-weight: 700; color: #111827;")
         root.addWidget(title)

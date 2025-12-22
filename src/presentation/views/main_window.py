@@ -62,7 +62,7 @@ class MainWindow(QMainWindow):
         """Initialize the user interface."""
         # Window settings
         self.setWindowTitle(f"{Messages.APP_TITLE} - [{self._role}] {self._username}")
-        self.setMinimumSize(1000, 700)
+        self.setMinimumSize(1236, 760)
         
         # Central widget
         central_widget = QWidget()
@@ -156,7 +156,7 @@ class MainWindow(QMainWindow):
         nav_layout.addWidget(user_label)
         
         # Logout button
-        self.logout_button = QPushButton("Dang xuat")
+        self.logout_button = QPushButton("Đăng xuất")
         self.logout_button.setStyleSheet("""
             QPushButton {
                 background-color: #e74c3c;

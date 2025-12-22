@@ -25,7 +25,6 @@ logger = logging.getLogger(__name__)
 
 
 class PhieuThuPage(QWidget):
-    """BM4: Phiếu thu tiền (UI-only, mock)."""
 
     PAGE_ID = "phieu_thu"
 
@@ -52,7 +51,7 @@ class PhieuThuPage(QWidget):
         container_layout.setContentsMargins(18, 18, 18, 18)
         container_layout.setSpacing(12)
 
-        title = QLabel("PHIẾU THU TIỀN (BM4)")
+        title = QLabel("PHIẾU THU TIỀN")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setObjectName("pageTitle")
 

@@ -200,4 +200,70 @@ STYLE = """
         QLabel#hintText {
             color: #6b7280;
         }
+        QLabel#moneyBig {
+            font-size: 22px;
+            font-weight: 800;
+            color: #111827;
+        }
+        QPushButton#btnPrimary {
+            background: #2563eb;
+            color: #ffffff;
+        }
+
+        QTableWidget#dataTable::item {
+            color: #111827;
+            padding: 6px;
+        }
+
+        QTableWidget#dataTable::item:selected {
+            background: #2563eb;
+            color: #ffffff;
+        }
+
+        QTableWidget#dataTable::item:disabled {
+            color: #9ca3af;
+        }
+
+        /* Optional: make selection look consistent */
+        QTableWidget#dataTable {
+            selection-background-color: #2563eb;
+            selection-color: #ffffff;
+        }
+        QTableWidget#dataTable QLineEdit,
+        QTableWidget#dataTable QComboBox {
+            min-height: 30px;
+        }
+
+        QTableWidget#dataTable QPushButton {
+            min-height: 30px;
+            padding: 4px 10px;
+        }
+
+        QPushButton#btnDanger {
+            background: #ef4444;
+            color: #ffffff;
+            min-height: 28px;
+        }
+
+        QPushButton#btnDanger:hover {
+            opacity: 0.92;
+        }
+
+        /* make table cell widgets not stick to edges */
+        QTableWidget#dataTable {
+            padding: 2px;
+        }
+
+        QPushButton#btnDanger {
+            background: #ef4444;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            min-height: 30px;
+        }
+
+        QPushButton#btnDanger:hover { opacity: 0.92; }
+
+
         """
