@@ -1,64 +1,479 @@
 # src/presentation/views/pages/tiep_nhan_xe_page.py
 """
-Tiep Nhan Xe (Vehicle Reception) page.
+Tiep Nhan Xe (Vehicle Reception) page - BM1 form (UI only).
 """
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
-from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QWidget,
+    QLabel,
+    QLineEdit,
+    QComboBox,
+    QDateEdit,
+    QTextEdit,
+    QPushButton,
+    QGridLayout,
+    QHBoxLayout,
+    QVBoxLayout,
+    QGroupBox,
+    QMessageBox,
+)
+from PyQt6.QtCore import QDate, Qt, QRegularExpression
+from PyQt6.QtGui import QRegularExpressionValidator
+from PyQt6.QtWidgets import QDialog, QFrame, QFormLayout
 
-from utils.messages import Messages
+class BienNhanTiepNhanDialog(QDialog):
+    """Dialog preview 'Biên nhận tiếp nhận xe' theo BM1."""
+
+    def __init__(self, data: dict, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Biên nhận tiếp nhận xe (BM1)")
+        self.setModal(True)
+        self.resize(520, 420)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(16, 16, 16, 16)
+        root.setSpacing(12)
+
+        title = QLabel("BIÊN NHẬN TIẾP NHẬN XE SỬA (BM1)")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title.setStyleSheet("font-size: 16px; font-weight: 700; color: #111827;")
+        root.addWidget(title)
+
+        sub = QLabel("Vui lòng kiểm tra thông tin trước khi in.")
+        sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        sub.setStyleSheet("color: #6b7280;")
+        root.addWidget(sub)
+
+        line = QFrame()
+        line.setFrameShape(QFrame.Shape.HLine)
+        line.setStyleSheet("color: #e5e7eb;")
+        root.addWidget(line)
+
+        # Form content
+        form_wrap = QWidget(self)
+        form = QFormLayout(form_wrap)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
+        form.setFormAlignment(Qt.AlignmentFlag.AlignTop)
+        form.setHorizontalSpacing(18)
+        form.setVerticalSpacing(10)
+
+        def val(x: str) -> str:
+            return (x or "").strip()
+
+        # Các field theo BM1
+        form.addRow("Tên chủ xe:", QLabel(val(data.get("owner_name"))))
+        form.addRow("Biển số:", QLabel(val(data.get("license_plate"))))
+        form.addRow("Hiệu xe:", QLabel(val(data.get("brand"))))
+        form.addRow("Địa chỉ:", QLabel(val(data.get("owner_address"))))
+        form.addRow("Điện thoại:", QLabel(val(data.get("owner_phone"))))
+        form.addRow("Ngày tiếp nhận:", QLabel(val(data.get("reception_date"))))
+
+        # style text value
+        for i in range(form.rowCount()):
+            w = form.itemAt(i, QFormLayout.ItemRole.FieldRole).widget()
+            if isinstance(w, QLabel):
+                w.setStyleSheet("color: #111827; font-weight: 600;")
+
+        root.addWidget(form_wrap)
+
+        # Footer buttons
+        btn_row = QHBoxLayout()
+        btn_row.addStretch(1)
+
+        self.btn_close = QPushButton("Đóng")
+        self.btn_close.clicked.connect(self.reject)
+
+        self.btn_fake_print = QPushButton("In")
+        self.btn_fake_print.setObjectName("btnDialogPrint")
+        self.btn_fake_print.clicked.connect(self._on_print)
+
+        btn_row.addWidget(self.btn_fake_print)
+        btn_row.addWidget(self.btn_close)
+        root.addLayout(btn_row)
+
+        # dialog style (nhẹ)
+        self.setStyleSheet("""
+            QDialog { background: #ffffff; }
+            QLabel { color: #374151; }
+            QPushButton { border-radius: 6px; padding: 7px 14px; }
+            QPushButton#btnDialogPrint { background: #059669; color: white; border: none; }
+            QPushButton#btnDialogPrint:hover { opacity: 0.92; }
+        """)
+
+    def _on_print(self):
+        # MVP: chỉ thông báo (sau này bạn thay bằng QPrinter)
+        QMessageBox.information(self, "In", "Đã in.")
+        self.accept()
 
 
 class TiepNhanXePage(QWidget):
-    """Page for receiving vehicles into the garage."""
-    
+    """Page for receiving vehicles into the garage (BM1)."""
+
     PAGE_ID = "tiep_nhan_xe"
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._setup_ui()
-    
+        self._apply_style()
+
     def _setup_ui(self):
-        """Initialize the user interface."""
-        layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        
-        # Title label
-        title_label = QLabel(Messages.PAGE_TIEP_NHAN_XE_TITLE)
-        title_label.setStyleSheet("""
-            QLabel {
-                font-size: 24px;
-                font-weight: bold;
-                color: #2c3e50;
-                padding: 20px 0;
-            }
+        # Root layout for page (embedded in stacked widget)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(18, 18, 18, 18)
+        root.setSpacing(14)
+        root.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        # A white container card to match your app look
+        container = QWidget(self)
+        container_layout = QVBoxLayout(container)
+        container_layout.setContentsMargins(18, 18, 18, 18)
+        container_layout.setSpacing(12)
+
+        # ===== Header =====
+        title = QLabel("TIẾP NHẬN XE SỬA (BM1)")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title.setObjectName("pageTitle")
+
+        subtitle = QLabel("Nhập thông tin chủ xe và xe để tiếp nhận.")
+        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        subtitle.setObjectName("pageSubtitle")
+
+        container_layout.addWidget(title)
+        container_layout.addWidget(subtitle)
+
+        # ===== Inputs =====
+        # Chủ xe
+        self.owner_name = QLineEdit()
+        self.owner_name.setPlaceholderText("Ví dụ: Nguyễn Văn A")
+
+        self.owner_phone = QLineEdit()
+        self.owner_phone.setPlaceholderText("10 chữ số")
+        self.owner_phone.setValidator(QRegularExpressionValidator(QRegularExpression(r"^\d{0,10}$")))
+
+        self.owner_address = QTextEdit()
+        self.owner_address.setPlaceholderText("Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành")
+        self.owner_address.setFixedHeight(70)
+
+        # Xe
+        self.license_plate = QLineEdit()
+        self.license_plate.setPlaceholderText("Ví dụ: 51F-123.45")
+        self.license_plate.textChanged.connect(self._uppercase_plate)
+
+        self.brand = QComboBox()
+        self.brand.addItems(["-- Chọn hiệu xe --", "Toyota", "Honda", "Suzuki", "Ford", "Kia", "Hyundai"])  # TODO: load DB
+
+        self.reception_date = QDateEdit()
+        self.reception_date.setCalendarPopup(True)
+        self.reception_date.setDate(QDate.currentDate())
+
+        # ===== Groupboxes =====
+        group_owner = QGroupBox("Thông tin chủ xe")
+        grid_owner = QGridLayout(group_owner)
+        grid_owner.setHorizontalSpacing(12)
+        grid_owner.setVerticalSpacing(10)
+        grid_owner.addWidget(QLabel("Tên chủ xe *"), 0, 0)
+        grid_owner.addWidget(self.owner_name, 0, 1)
+        grid_owner.addWidget(QLabel("Điện thoại *"), 1, 0)
+        grid_owner.addWidget(self.owner_phone, 1, 1)
+        grid_owner.addWidget(QLabel("Địa chỉ *"), 2, 0, Qt.AlignmentFlag.AlignTop)
+        grid_owner.addWidget(self.owner_address, 2, 1)
+
+        group_car = QGroupBox("Thông tin xe & tiếp nhận")
+        grid_car = QGridLayout(group_car)
+        grid_car.setHorizontalSpacing(12)
+        grid_car.setVerticalSpacing(10)
+        grid_car.addWidget(QLabel("Biển số *"), 0, 0)
+        grid_car.addWidget(self.license_plate, 0, 1)
+        grid_car.addWidget(QLabel("Hiệu xe *"), 1, 0)
+        grid_car.addWidget(self.brand, 1, 1)
+        grid_car.addWidget(QLabel("Ngày tiếp nhận *"), 2, 0)
+        grid_car.addWidget(self.reception_date, 2, 1)
+
+        body = QHBoxLayout()
+        body.setSpacing(12)
+        body.addWidget(group_owner, 1)
+        body.addWidget(group_car, 1)
+        container_layout.addLayout(body)
+
+        # ===== Buttons =====
+        self.btn_save = QPushButton("Lưu tiếp nhận")
+        self.btn_reset = QPushButton("Làm mới")
+        self.btn_print = QPushButton("In biên nhận")
+
+        self.btn_save.setObjectName("btnSave")
+        self.btn_reset.setObjectName("btnReset")
+        self.btn_print.setObjectName("btnPrint")
+
+        self.btn_save.clicked.connect(self._on_save_clicked)
+        self.btn_reset.clicked.connect(self._on_reset_clicked)
+        self.btn_print.clicked.connect(self._on_print_clicked)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch(1)
+        btn_row.addWidget(self.btn_save)
+        btn_row.addWidget(self.btn_reset)
+        btn_row.addWidget(self.btn_print)
+        container_layout.addLayout(btn_row)
+
+        # Put container in root layout
+        container.setObjectName("pageContainer")
+        root.addWidget(container)
+        root.addStretch(1)
+
+    def _apply_style(self):
+        # Local QSS so it won't look washed out under global stylesheet
+        self.setStyleSheet("""
+        QWidget#pageContainer {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+        }
+
+        QLabel#pageTitle {
+            font-size: 18px;
+            font-weight: 700;
+            color: #111827;
+            padding-top: 4px;
+        }
+
+        QLabel#pageSubtitle {
+            color: #6b7280;
+            padding-bottom: 6px;
+        }
+
+        QGroupBox {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 12px;
+            top: 0px;
+            padding: 0 6px;
+            color: #374151;
+            font-weight: 600;
+        }
+
+        QLabel {
+            color: #374151;
+        }
+
+        QLineEdit, QTextEdit, QComboBox {
+            background: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 6px 8px;
+            color: #000000;
+        }
+
+        QLineEdit:focus, QTextEdit:focus, QComboBox:focus {
+            border: 1px solid #2563eb;
+        }
+
+        QLineEdit, QTextEdit, QComboBox QAbstractItemView {
+            background: #ffffff;
+            color: #111827;          /* màu chữ trong dropdown */
+            selection-background-color: #2563eb;
+            selection-color: #ffffff;
+            outline: 0;
+        }
+
+        QPushButton {
+            border: none;
+            border-radius: 6px;
+            padding: 7px 14px;
+            color: #ffffff;
+            background: #2563eb;
+        }
+        QPushButton#btnReset { background: #6b7280; }
+        QPushButton#btnPrint { background: #059669; }
+
+        QPushButton:hover { opacity: 0.92; }
+
+        QDateEdit {
+            background: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 6px 8px;
+            color: #111827;
+        }
+
+        QDateEdit:focus {
+            border: 1px solid #2563eb;
+        }
+
+        /* ===== Calendar popup ===== */
+        QCalendarWidget {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+
+        /* Header (tháng/năm) */
+        QCalendarWidget QWidget#qt_calendar_navigationbar {
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        QCalendarWidget QToolButton {
+            background: transparent;
+            color: #111827;
+            font-weight: 600;
+            padding: 4px 8px;
+        }
+
+        QCalendarWidget QToolButton:hover {
+            background: #e5e7eb;
+            border-radius: 4px;
+        }
+
+        /* Bảng ngày */
+        QCalendarWidget QTableView {
+            background: #ffffff;
+            selection-background-color: #2563eb;
+            selection-color: #ffffff;
+            outline: 0;
+        }
+
+        /* Ngày thường */
+        QCalendarWidget QTableView::item {
+            color: #111827;
+            padding: 6px;
+        }
+
+        /* Cuối tuần */
+        QCalendarWidget QTableView::item:!enabled {
+            color: #9ca3af;
+        }
+
+        QCalendarWidget QTableView::item:selected {
+            background: #2563eb;
+            color: #ffffff;
+            border-radius: 4px;
+        }
+
+        /* Chủ nhật / Thứ bảy (đừng quá đỏ) */
+        QCalendarWidget QHeaderView::section {
+            background: #f9fafb;
+            color: #374151;
+            padding: 4px;
+            border: none;
+        }
+
+        /* Tháng khác (ngày mờ) */
+        QCalendarWidget QTableView::item:disabled {
+            color: #d1d5db;
+        }
+
+        QCalendarWidget QMenu {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+        }
+
+        QCalendarWidget QMenu::item {
+            padding: 6px 12px;
+            color: #111827;
+        }
+
+        QCalendarWidget QMenu::item:selected {
+            background: #2563eb;
+            color: #ffffff;
+        }
+        QCalendarWidget QSpinBox#qt_calendar_yearedit {
+            background: #ffffff;
+            color: #111827;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 2px 6px;
+            min-width: 56px;
+        }
+
+        QCalendarWidget QSpinBox#qt_calendar_yearedit:focus {
+            border: 1px solid #2563eb;
+        }
+
+        QCalendarWidget QSpinBox#qt_calendar_yearedit QLineEdit {
+            background: transparent;
+            color: #111827;
+            font-weight: 600;
+            selection-background-color: #2563eb;
+            selection-color: #ffffff;
+        }
         """)
-        layout.addWidget(title_label)
-        
-        # Description label
-        desc_label = QLabel(Messages.PAGE_TIEP_NHAN_XE_DESC)
-        desc_label.setStyleSheet("""
-            QLabel {
-                font-size: 14px;
-                color: #7f8c8d;
-                padding-bottom: 20px;
-            }
-        """)
-        layout.addWidget(desc_label)
-        
-        # Placeholder content
-        placeholder = QLabel("[ Noi dung trang Tiep nhan xe se duoc phat trien o day ]")
-        placeholder.setStyleSheet("""
-            QLabel {
-                font-size: 12px;
-                color: #95a5a6;
-                font-style: italic;
-                padding: 40px;
-                background-color: #ecf0f1;
-                border-radius: 8px;
-            }
-        """)
-        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(placeholder)
-        
-        layout.addStretch()
+
+    def _uppercase_plate(self):
+        txt = self.license_plate.text()
+        upper = txt.upper()
+        if txt != upper:
+            pos = self.license_plate.cursorPosition()
+            self.license_plate.blockSignals(True)
+            self.license_plate.setText(upper)
+            self.license_plate.setCursorPosition(pos)
+            self.license_plate.blockSignals(False)
+
+    def get_form_data(self) -> dict:
+        return {
+            "owner_name": self.owner_name.text().strip(),
+            "owner_phone": self.owner_phone.text().strip(),
+            "owner_address": self.owner_address.toPlainText().strip(),
+            "license_plate": self.license_plate.text().strip(),
+            "brand": self.brand.currentText(),
+            "reception_date": self.reception_date.date().toString("yyyy-MM-dd"),
+        }
+
+    def _on_save_clicked(self):
+        data = self.get_form_data()
+        missing = []
+        if not data["owner_name"]:
+            missing.append("Tên chủ xe")
+        if not data["owner_phone"] or len(data["owner_phone"]) != 10:
+            missing.append("Điện thoại (10 chữ số)")
+        if not data["owner_address"]:
+            missing.append("Địa chỉ")
+        if not data["license_plate"]:
+            missing.append("Biển số")
+        if data["brand"] == "-- Chọn hiệu xe --":
+            missing.append("Hiệu xe")
+
+        if missing:
+            QMessageBox.warning(self, "Thiếu thông tin", "Vui lòng nhập:\n- " + "\n- ".join(missing))
+            return
+
+        QMessageBox.information(
+            self,
+            "OK",
+            "Đã nhận dữ liệu form (chưa lưu DB).\n\n" + "\n".join([f"{k}: {v}" for k, v in data.items()]),
+        )
+
+    def _on_reset_clicked(self):
+        self.owner_name.clear()
+        self.owner_phone.clear()
+        self.owner_address.clear()
+        self.license_plate.clear()
+        self.brand.setCurrentIndex(0)
+        self.reception_date.setDate(QDate.currentDate())
+
+    def _on_print_clicked(self):
+        data = self.get_form_data()
+
+        missing = []
+        if not data["owner_name"]:
+            missing.append("Tên chủ xe")
+        if not data["owner_phone"] or len(data["owner_phone"]) != 10:
+            missing.append("Điện thoại (10 chữ số)")
+        if not data["owner_address"]:
+            missing.append("Địa chỉ")
+        if not data["license_plate"]:
+            missing.append("Biển số")
+        if data["brand"] == "-- Chọn hiệu xe --":
+            missing.append("Hiệu xe")
+
+        if missing:
+            QMessageBox.warning(self, "Thiếu thông tin", "Vui lòng nhập:\n- " + "\n- ".join(missing))
+            return
+
+        dlg = BienNhanTiepNhanDialog(data, parent=self)
+        dlg.exec()

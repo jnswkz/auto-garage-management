@@ -13,8 +13,9 @@ from PyQt6.QtWidgets import (
     QStackedWidget,
     QLabel,
     QMessageBox,
+    QPushButton,
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 
 from utils.messages import Messages
 from presentation.permissions import can_access, PagePermissions
@@ -33,6 +34,9 @@ from presentation.views.pages import (
 
 class MainWindow(QMainWindow):
     """Main application window with navigation sidebar and content area."""
+    
+    # Signal emitted when user requests logout
+    logout_requested = pyqtSignal()
     
     # Navigation items: (display_name, page_id, page_class)
     NAV_ITEMS = [
@@ -151,7 +155,65 @@ class MainWindow(QMainWindow):
         user_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         nav_layout.addWidget(user_label)
         
+        # Logout button
+        self.logout_button = QPushButton("Dang xuat")
+        self.logout_button.setStyleSheet("""
+            QPushButton {
+                background-color: #e74c3c;
+                color: white;
+                padding: 12px 20px;
+                border: none;
+                font-size: 13px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #c0392b;
+            }
+            QPushButton:pressed {
+                background-color: #a93226;
+            }
+        """)
+        self.logout_button.clicked.connect(self._on_logout_clicked)
+        nav_layout.addWidget(self.logout_button)
+        
         return nav_widget
+    
+    def _on_logout_clicked(self):
+        """Handle logout button click."""
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("Xac nhan dang xuat")
+        msg_box.setText("Ban co chac chan muon dang xuat?")
+        msg_box.setStandardButtons(
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        msg_box.setDefaultButton(QMessageBox.StandardButton.No)
+        msg_box.setStyleSheet("""
+            QMessageBox {
+                background-color: white;
+            }
+            QMessageBox QLabel {
+                color: #2c3e50;
+                font-size: 13px;
+            }
+            QMessageBox QPushButton {
+                background-color: #3498db;
+                color: white;
+                padding: 8px 20px;
+                border: none;
+                border-radius: 4px;
+                font-size: 12px;
+                min-width: 80px;
+            }
+            QMessageBox QPushButton:hover {
+                background-color: #2980b9;
+            }
+            QMessageBox QPushButton:pressed {
+                background-color: #21618c;
+            }
+        """)
+        reply = msg_box.exec()
+        if reply == QMessageBox.StandardButton.Yes:
+            self.logout_requested.emit()
     
     def _create_content_area(self) -> QWidget:
         """Create the right content area with stacked pages."""

@@ -91,8 +91,26 @@ class MainController:
             raise RuntimeError("User not logged in")
         
         self._main_window = MainWindow(role=role, username=username)
+        self._main_window.logout_requested.connect(self._on_logout)
         self._main_window.select_first_page()
         self._main_window.show()
+    
+    def _on_logout(self):
+        """Handle logout request from main window."""
+        # Close main window
+        if self._main_window:
+            self._main_window.close()
+            self._main_window = None
+        
+        # Clear session
+        self._login_controller.logout()
+        
+        # Show login dialog again
+        if self._show_login():
+            self._show_main_window()
+        else:
+            # User cancelled login, quit application
+            QApplication.quit()
     
     def get_main_window(self) -> Optional[MainWindow]:
         """Get the main window instance."""
