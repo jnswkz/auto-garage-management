@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.style import STYLE
+from services import SuppliesImportService
 
 
 @dataclass(frozen=True)
@@ -42,12 +43,32 @@ class NhapVatTuPage(QWidget):
         super().__init__(parent)
         self.setStyleSheet(STYLE)
 
-        # TODO: thay bằng service load từ DB (SUPPLIES)
-        self._supplies: List[SupplyRow] = self._mock_supplies()
+        # Service xử lý nhập vật tư
+        self.service = SuppliesImportService()
+        
+        # Load danh sách vật tư từ DB
+        self._supplies: List[SupplyRow] = []
+        self._load_supplies_from_db()
 
         self._setup_ui()
         self._render_table()
 
+    # ---------------- Data Loading ----------------
+    def _load_supplies_from_db(self):
+        """Load danh sách vật tư từ database."""
+        try:
+            supplies_data = self.service.get_all_supplies_for_import()
+            self._supplies = [
+                SupplyRow(
+                    name=s['name'],
+                    price=int(s['price']),
+                    stock=s['stock']
+                ) for s in supplies_data
+            ]
+        except Exception as e:
+            QMessageBox.critical(self, "Lỗi", f"Không thể load danh sách vật tư:\n{str(e)}")
+            self._supplies = []
+    
     # ---------------- UI ----------------
     def _setup_ui(self):
         root = QVBoxLayout(self)
@@ -225,28 +246,58 @@ class NhapVatTuPage(QWidget):
             QMessageBox.information(self, "Lưu phiếu nhập", "Chưa có dòng nào có số lượng nhập > 0.")
             return
 
-        # UI-only preview
-        total_money = sum(x["line_money"] for x in lines)
-        text_lines = []
-        for i, x in enumerate(lines, start=1):
-            text_lines.append(
-                f"{i}. {x['name']} | SL nhập: {x['import_qty']} | Tồn: {x['stock_before']} -> {x['stock_after']} | Tiền: {self._fmt_money(x['line_money'])}"
+        # Chuẩn bị dữ liệu cho service
+        import_date = self.import_date.date().toPyDate()
+        
+        # Tìm SuppliesId từ tên (map từ _supplies)
+        name_to_supply = {s.name: s for s in self._supplies}
+        
+        # Lấy supplies_data từ service để có ID
+        try:
+            supplies_data = self.service.get_all_supplies_for_import()
+            name_to_id = {s['name']: s['id'] for s in supplies_data}
+            
+            # Chuẩn bị items cho service
+            items = []
+            for line in lines:
+                supply_id = name_to_id.get(line['name'])
+                if supply_id is None:
+                    QMessageBox.warning(self, "Lỗi", f"Không tìm thấy ID cho vật tư: {line['name']}")
+                    return
+                items.append({
+                    'supply_id': supply_id,
+                    'import_qty': line['import_qty']
+                })
+            
+            # Lưu vào DB
+            result = self.service.create_import_ticket(import_date, items)
+            
+            # Hiển thị kết quả
+            total_money = result['total_money']
+            text_lines = []
+            for i, x in enumerate(lines, start=1):
+                text_lines.append(
+                    f"{i}. {x['name']} | SL nhập: {x['import_qty']} | "
+                    f"Tồn: {x['stock_before']} -> {x['stock_after']} | "
+                    f"Tiền: {self._fmt_money(x['line_money'])}"
+                )
+
+            QMessageBox.information(
+                self,
+                "Lưu phiếu nhập thành công",
+                f"Ngày nhập: {import_date.strftime('%Y-%m-%d')}\n\n" +
+                "\n".join(text_lines) +
+                f"\n\nTổng tiền nhập: {self._fmt_money(int(total_money))}\n" +
+                f"Số phiếu đã tạo: {result['total_items']}"
             )
-
-        QMessageBox.information(
-            self,
-            "Phiếu nhập (demo)",
-            "Ngày nhập: "
-            + self.import_date.date().toString("yyyy-MM-dd")
-            + "\n\n"
-            + "\n".join(text_lines)
-            + f"\n\nTổng tiền nhập: {self._fmt_money(total_money)}",
-        )
-
-        # TODO (DB thật):
-        # - tạo PhiếuNhập (ImportTicket)
-        # - insert chi tiết phiếu nhập
-        # - update tồn kho SUPPLIES (SuppliesAmount += qty)
+            
+            # Reload dữ liệu và reset form
+            self._load_supplies_from_db()
+            self._render_table()
+            self.import_date.setDate(QDate.currentDate())
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Lỗi", f"Không thể lưu phiếu nhập:\n{str(e)}")
 
     def _on_reset_clicked(self):
         self.import_date.setDate(QDate.currentDate())
@@ -255,15 +306,6 @@ class NhapVatTuPage(QWidget):
             if qty_edit:
                 qty_edit.setText("0")
         self._update_selected_count()
-
-    # ---------------- Mock ----------------
-    def _mock_supplies(self) -> list[SupplyRow]:
-        return [
-            SupplyRow("Dầu nhớt", 120000, 30),
-            SupplyRow("Lọc gió", 80000, 18),
-            SupplyRow("Bugi", 90000, 40),
-            SupplyRow("Má phanh", 350000, 12),
-        ]
 
     # ---------------- Money helpers ----------------
     def _fmt_money(self, v: int) -> str:

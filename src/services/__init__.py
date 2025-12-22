@@ -11,6 +11,7 @@ from .receipt_service import ReceiptService
 from .revenue_report_service import RevenueReportService
 from .stock_report_service import StockReportService
 from .system_settings_service import SystemSettingsService
+from .supplies_import_service import SuppliesImportService
 
 __all__ = [
     'CarReceptionService', 
@@ -19,5 +20,6 @@ __all__ = [
     'ReceiptService',
     'RevenueReportService',
     'StockReportService',
-    'SystemSettingsService'
+    'SystemSettingsService',
+    'SuppliesImportService'
 ]
