@@ -11,3 +11,7 @@ wheels/
 .env
 
 ingest.py
+
+**/installer_payload/
+packaging/mysql/
+packaging/installer_output/

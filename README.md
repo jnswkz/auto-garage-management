@@ -98,6 +98,10 @@ cd src
 python main.py
 ```
 
+## Packaging (Windows Installer + Portable MySQL)
+
+See `packaging/README.md` for the full step-by-step setup.
+
 ## Test Credentials
 
 | Username | Password | Role  |

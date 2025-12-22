@@ -13,6 +13,7 @@ from presentation.views.pages.bao_cao_ton_page import BaoCaoTonPage
 # from presentation.views.pages.quan_ly_danh_muc_page import QuanLyDanhMucPage
 from presentation.views.pages.thay_doi_quy_dinh_page import ThayDoiQuyDinhPage
 # from presentation.views.pages.quan_ly_user_page import QuanLyUserPage
+from presentation.views.pages.nhap_vat_tu_page import NhapVatTuPage
 
 __all__ = [
     "TiepNhanXePage",
@@ -24,4 +25,5 @@ __all__ = [
     # "QuanLyDanhMucPage",
     "ThayDoiQuyDinhPage",
     # "QuanLyUserPage",
+    "NhapVatTuPage",
 ]
