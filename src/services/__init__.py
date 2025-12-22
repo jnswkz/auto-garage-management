@@ -8,5 +8,12 @@ from .car_reception_service import CarReceptionService
 from .repair_service import RepairService
 from .vehicle_lookup_service import VehicleLookupService
 from .receipt_service import ReceiptService
+from .revenue_report_service import RevenueReportService
 
-__all__ = ['CarReceptionService', 'RepairService', 'VehicleLookupService', 'ReceiptService']
+__all__ = [
+    'CarReceptionService', 
+    'RepairService', 
+    'VehicleLookupService', 
+    'ReceiptService',
+    'RevenueReportService'
+]
