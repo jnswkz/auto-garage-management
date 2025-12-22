@@ -16,8 +16,12 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QMessageBox,
 )
+import logging
 
 from utils.style import STYLE
+from services.receipt_service import ReceiptService
+
+logger = logging.getLogger(__name__)
 
 
 class PhieuThuPage(QWidget):
@@ -29,8 +33,10 @@ class PhieuThuPage(QWidget):
         super().__init__(parent)
         # Nếu bạn apply STYLE toàn app rồi thì có thể bỏ dòng này
         self.setStyleSheet(STYLE)
+        
+        self.service = ReceiptService()
+        self.current_reception_id = None  # Lưu ReceptionId hiện tại để tạo phiếu thu
 
-        self._mock_db = self._mock_debts()
         self._setup_ui()
         self._apply_view_state(empty=True)
 
@@ -170,27 +176,78 @@ class PhieuThuPage(QWidget):
         root.addWidget(container)
         root.addStretch(1)
 
-    # ---------------- Logic (UI-only) ----------------
+    # ---------------- Logic ----------------
     def _on_load_clicked(self):
+        """Tải thông tin xe và nợ từ database."""
         plate = self.inp_plate.text().strip().upper()
         if not plate:
             QMessageBox.warning(self, "Thiếu thông tin", "Vui lòng nhập biển số.")
             return
-
-        info = self._mock_db.get(plate)
-        if not info:
+        
+        try:
+            # Lấy thông tin xe và tổng nợ
+            info = self.service.get_vehicle_debt_info(plate)
+            if not info:
+                self._apply_view_state(empty=True)
+                self.current_reception_id = None
+                QMessageBox.information(
+                    self,
+                    "Không tìm thấy",
+                    f"Không tìm thấy xe có biển số {plate} trong hệ thống."
+                )
+                return
+            
+            total_debt = float(info['TotalDebt']) if info['TotalDebt'] else 0
+            
+            if total_debt <= 0:
+                self._apply_view_state(empty=False)
+                self.out_owner.setText(info['OwnerName'])
+                self.out_phone.setText(info['PhoneNumber'] or '')
+                self.out_address.setText(info['Address'] or '')
+                self._set_debt(0)
+                self.lbl_debt_hint.setText("Xe này không có nợ.")
+                self.current_reception_id = None
+                QMessageBox.information(
+                    self,
+                    "Không có nợ",
+                    f"Xe {plate} không có công nợ."
+                )
+                return
+            
+            # Lấy phiếu tiếp nhận mới nhất có nợ
+            reception = self.service.get_latest_reception_with_debt(plate)
+            if not reception:
+                self._apply_view_state(empty=True)
+                self.current_reception_id = None
+                QMessageBox.warning(
+                    self,
+                    "Lỗi",
+                    "Không tìm thấy phiếu tiếp nhận có nợ cho xe này."
+                )
+                return
+            
+            # Hiển thị thông tin
+            self._apply_view_state(empty=False)
+            self.out_owner.setText(info['OwnerName'])
+            self.out_phone.setText(info['PhoneNumber'] or '')
+            self.out_address.setText(info['Address'] or '')
+            self._set_debt(int(total_debt))
+            self.current_reception_id = reception['ReceptionId']
+            
+            self.lbl_debt_hint.setText("Quy định: Tiền thu không vượt quá tiền nợ.")
+            self._on_amount_changed()
+            
+            logger.info(f"Loaded debt info for {plate}: {total_debt}")
+            
+        except Exception as e:
+            logger.error(f"Error loading vehicle debt info: {e}")
             self._apply_view_state(empty=True)
-            QMessageBox.information(self, "Không tìm thấy", "Không tìm thấy xe hoặc chưa có công nợ (demo).")
-            return
-
-        self._apply_view_state(empty=False)
-        self.out_owner.setText(info["owner"])
-        self.out_phone.setText(info["phone"])
-        self.out_address.setText(info["address"])
-        self._set_debt(info["debt"])
-
-        self.lbl_debt_hint.setText("Quy định: Tiền thu không vượt quá tiền nợ.")
-        self._on_amount_changed()
+            self.current_reception_id = None
+            QMessageBox.critical(
+                self,
+                "Lỗi",
+                f"Đã xảy ra lỗi khi tải thông tin:\n{str(e)}"
+            )
 
     def _on_amount_changed(self):
         debt = self._get_debt()
@@ -199,14 +256,14 @@ class PhieuThuPage(QWidget):
         self.lbl_after.setText(f"Còn nợ sau thu: {self._fmt_money(after)}")
 
     def _on_save_clicked(self):
+        """Lưu phiếu thu vào database."""
         plate = self.inp_plate.text().strip().upper()
         if not plate:
             QMessageBox.warning(self, "Thiếu thông tin", "Vui lòng nhập biển số và tải thông tin.")
             return
-
-        info = self._mock_db.get(plate)
-        if not info:
-            QMessageBox.warning(self, "Thiếu thông tin", "Vui lòng bấm 'Tải thông tin' và chọn xe hợp lệ.")
+        
+        if not self.current_reception_id:
+            QMessageBox.warning(self, "Thiếu thông tin", "Vui lòng bấm 'Tải thông tin' trước.")
             return
 
         debt = self._get_debt()
@@ -215,7 +272,7 @@ class PhieuThuPage(QWidget):
             QMessageBox.warning(self, "Thiếu thông tin", "Vui lòng nhập số tiền thu > 0.")
             return
 
-        # QĐ4: Tiền thu <= tiền nợ
+        # QĐ4: Tiền thu <= tiền nợ (kiểm tra trước)
         if amount > debt:
             QMessageBox.warning(
                 self,
@@ -225,35 +282,90 @@ class PhieuThuPage(QWidget):
                 f"Tiền thu: {self._fmt_money(amount)}"
             )
             return
-
-        # UI-only: giả lập cập nhật công nợ
-        new_debt = debt - amount
-        self._mock_db[plate]["debt"] = new_debt
-        self._set_debt(new_debt)
-        self._on_amount_changed()
-
-        QMessageBox.information(
-            self,
-            "OK",
-            "Đã lập phiếu thu (demo, chưa lưu DB).\n\n"
-            f"Biển số: {plate}\n"
-            f"Ngày thu: {self.receipt_date.date().toString('yyyy-MM-dd')}\n"
-            f"Tiền thu: {self._fmt_money(amount)}\n"
-            f"Còn nợ: {self._fmt_money(new_debt)}"
-        )
+        
+        try:
+            # Tạo phiếu thu
+            result = self.service.create_receipt(
+                reception_id=self.current_reception_id,
+                receipt_date=self.receipt_date.date().toString('yyyy-MM-dd'),
+                money_amount=amount
+            )
+            
+            if result['success']:
+                remaining_debt = result.get('remaining_debt', 0)
+                
+                # Hiển thị thông báo thành công
+                msg = QMessageBox(self)
+                msg.setIcon(QMessageBox.Icon.Information)
+                msg.setWindowTitle("Thành công")
+                msg.setText(result['message'])
+                msg.setInformativeText(
+                    f"Mã phiếu thu: {result['receipt_id']}\n"
+                    f"Biển số: {plate}\n"
+                    f"Ngày thu: {self.receipt_date.date().toString('yyyy-MM-dd')}\n"
+                    f"Tiền thu: {self._fmt_money(amount)}\n"
+                    f"Còn nợ: {self._fmt_money(int(remaining_debt))}"
+                )
+                msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+                msg.exec()
+                
+                # Lưu receipt_id để có thể in phiếu
+                self.last_receipt_id = result['receipt_id']
+                
+                # Cập nhật hiển thị nợ mới
+                self._set_debt(int(remaining_debt))
+                self.inp_amount.clear()
+                self._on_amount_changed()
+                
+                # Nếu hết nợ, reset form
+                if remaining_debt <= 0:
+                    QMessageBox.information(
+                        self,
+                        "Thông báo",
+                        "Xe đã thanh toán hết nợ!"
+                    )
+                    self._on_reset_clicked()
+            else:
+                # Hiển thị lỗi
+                QMessageBox.critical(
+                    self,
+                    "Lỗi",
+                    f"Không thể tạo phiếu thu:\n{result['message']}"
+                )
+        except Exception as e:
+            logger.error(f"Error saving receipt: {e}")
+            QMessageBox.critical(
+                self,
+                "Lỗi",
+                f"Đã xảy ra lỗi khi lưu phiếu thu:\n{str(e)}"
+            )
 
     def _on_print_clicked(self):
-        # MVP: preview/in thật làm sau
+        """In phiếu thu (demo)."""
         plate = self.inp_plate.text().strip().upper()
-        if not plate or plate not in self._mock_db:
+        if not plate or not self.current_reception_id:
             QMessageBox.information(self, "In phiếu", "Vui lòng tải thông tin xe trước.")
             return
-        QMessageBox.information(self, "In phiếu", f"Sẽ in phiếu thu cho xe: {plate}")
+        
+        amount = self.inp_amount.text().strip()
+        if not amount or int(amount or "0") <= 0:
+            QMessageBox.information(self, "In phiếu", "Vui lòng nhập số tiền thu trước khi in.")
+            return
+        
+        QMessageBox.information(
+            self,
+            "In phiếu (demo)",
+            f"Sẽ in phiếu thu cho xe: {plate}\n"
+            f"Số tiền: {self._fmt_money(int(amount))}"
+        )
 
     def _on_reset_clicked(self):
+        """Reset form về trạng thái ban đầu."""
         self.inp_plate.clear()
         self.inp_amount.clear()
         self.receipt_date.setDate(QDate.currentDate())
+        self.current_reception_id = None
+        self.last_receipt_id = None
         self._apply_view_state(empty=True)
 
     def _apply_view_state(self, *, empty: bool):
@@ -287,11 +399,3 @@ class PhieuThuPage(QWidget):
 
     def _fmt_money(self, v: int) -> str:
         return f"{v:,}"
-
-    def _mock_debts(self) -> dict:
-        # TODO: thay bằng query DB: CAR + CAR_RECEPTION.Debt
-        return {
-            "51F-123.45": {"owner": "Nguyễn Văn A", "phone": "0912345678", "address": "Q1, TP.HCM", "debt": 1200000},
-            "51G-456.78": {"owner": "Phạm Minh D", "phone": "0987654321", "address": "Thủ Đức, TP.HCM", "debt": 9800000},
-            "59A-111.22": {"owner": "Lê Văn C", "phone": "0900111222", "address": "Q5, TP.HCM", "debt": 350000},
-        }

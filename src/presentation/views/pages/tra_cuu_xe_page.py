@@ -21,8 +21,12 @@ from PyQt6.QtWidgets import (
     QHeaderView,
     QMessageBox,
 )
+import logging
 
 from utils.style import STYLE
+from services.vehicle_lookup_service import VehicleLookupService
+
+logger = logging.getLogger(__name__)
 
 
 class TraCuuXePage(QWidget):
@@ -34,9 +38,12 @@ class TraCuuXePage(QWidget):
         super().__init__(parent)
         # Nếu bạn apply STYLE ở mức app rồi thì có thể bỏ dòng dưới
         self.setStyleSheet(STYLE)
+        
+        self.service = VehicleLookupService()
+        self._rows = []  # Will be loaded from DB
 
         self._setup_ui()
-        self._load_mock_data()
+        self._load_data_from_db()
         self._apply_filter()
 
     def _setup_ui(self):
@@ -76,7 +83,7 @@ class TraCuuXePage(QWidget):
         self.inp_owner.setPlaceholderText("Tên chủ xe")
 
         self.cb_brand = QComboBox()
-        self.cb_brand.addItems(["-- Tất cả hiệu xe --", "Toyota", "Honda", "Suzuki", "Ford", "Kia", "Hyundai"])  # TODO: load DB
+        self.cb_brand.addItem("-- Tất cả hiệu xe --")  # Will be populated from DB
 
         self.btn_search = QPushButton("Tìm kiếm")
         self.btn_search.setObjectName("btnPrimary")
@@ -137,15 +144,59 @@ class TraCuuXePage(QWidget):
         root.addWidget(container)
         root.addStretch(1)
 
-    # ---------------- Mock + filter ----------------
-    def _load_mock_data(self):
-        # TODO: thay bằng data từ DB (CAR + CAR_RECEPTION Debt)
-        self._rows = [
-            {"plate": "51F-123.45", "brand": "Toyota", "owner": "Nguyễn Văn A", "debt": 1200000},
-            {"plate": "50H-888.99", "brand": "Honda", "owner": "Trần Thị B", "debt": 0},
-            {"plate": "59A-111.22", "brand": "Ford", "owner": "Lê Văn C", "debt": 350000},
-            {"plate": "51G-456.78", "brand": "Kia", "owner": "Phạm Minh D", "debt": 9800000},
-        ]
+    # ---------------- Data Loading ----------------
+    def _load_data_from_db(self):
+        """Load danh sách xe từ database."""
+        try:
+            # Load all vehicles with their debt
+            vehicles = self.service.get_all_vehicles_with_debt()
+            
+            self._rows = []
+            for v in vehicles:
+                self._rows.append({
+                    "plate": v['LicensePlate'],
+                    "brand": v['BrandName'],
+                    "owner": v['OwnerName'],
+                    "debt": int(v['TotalDebt']) if v['TotalDebt'] else 0
+                })
+            
+            logger.info(f"Loaded {len(self._rows)} vehicles from database")
+            
+            # Load brands for combobox
+            self._load_brands()
+            
+        except Exception as e:
+            logger.error(f"Failed to load vehicles from database: {e}")
+            QMessageBox.warning(
+                self,
+                "Cảnh báo",
+                "Không thể tải danh sách xe từ database.\n"
+                "Vui lòng kiểm tra kết nối database."
+            )
+            self._rows = []
+    
+    def _load_brands(self):
+        """Load danh sách hiệu xe vào combobox."""
+        try:
+            brands = self.service.get_all_brands()
+            
+            # Clear existing items except the first one ("-- Tất cả hiệu xe --")
+            current_brand = self.cb_brand.currentText()
+            self.cb_brand.clear()
+            self.cb_brand.addItem("-- Tất cả hiệu xe --")
+            
+            # Add brands from database
+            for brand in brands:
+                self.cb_brand.addItem(brand['BrandName'])
+            
+            # Restore previous selection if it still exists
+            idx = self.cb_brand.findText(current_brand)
+            if idx >= 0:
+                self.cb_brand.setCurrentIndex(idx)
+            
+            logger.info(f"Loaded {len(brands)} car brands")
+        except Exception as e:
+            logger.error(f"Failed to load car brands: {e}")
 
     def _apply_filter(self):
         plate_q = self.inp_plate.text().strip().upper()
