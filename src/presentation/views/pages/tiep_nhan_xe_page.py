@@ -17,6 +17,11 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import QDate, Qt, QRegularExpression
 from PyQt6.QtGui import QRegularExpressionValidator
 from PyQt6.QtWidgets import QDialog, QFrame, QFormLayout
+import logging
+
+from services.car_reception_service import CarReceptionService
+
+logger = logging.getLogger(__name__)
 from utils.style import STYLE
 
 class BienNhanTiepNhanDialog(QDialog):
@@ -111,8 +116,10 @@ class TiepNhanXePage(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.service = CarReceptionService()
         self._setup_ui()
         self._apply_style()
+        self._load_brands()
 
     def _setup_ui(self):
         # Root layout for page (embedded in stacked widget)
@@ -158,7 +165,7 @@ class TiepNhanXePage(QWidget):
         self.license_plate.textChanged.connect(self._uppercase_plate)
 
         self.brand = QComboBox()
-        self.brand.addItems(["-- Chọn hiệu xe --", "Toyota", "Honda", "Suzuki", "Ford", "Kia", "Hyundai"])  # TODO: load DB
+        self.brand.addItem("-- Chọn hiệu xe --")  # Placeholder, sẽ load từ DB
 
         self.reception_date = QDateEdit()
         self.reception_date.setCalendarPopup(True)
@@ -243,7 +250,10 @@ class TiepNhanXePage(QWidget):
         }
 
     def _on_save_clicked(self):
+        """Xử lý khi người dùng nhấn nút Lưu tiếp nhận."""
         data = self.get_form_data()
+        
+        # Validate dữ liệu đầu vào
         missing = []
         if not data["owner_name"]:
             missing.append("Tên chủ xe")
@@ -259,20 +269,85 @@ class TiepNhanXePage(QWidget):
         if missing:
             QMessageBox.warning(self, "Thiếu thông tin", "Vui lòng nhập:\n- " + "\n- ".join(missing))
             return
-
-        QMessageBox.information(
-            self,
-            "OK",
-            "Đã nhận dữ liệu form (chưa lưu DB).\n\n" + "\n".join([f"{k}: {v}" for k, v in data.items()]),
-        )
+        
+        # Gọi service để lưu vào database
+        try:
+            result = self.service.receive_car(
+                license_plate=data["license_plate"],
+                brand_name=data["brand"],
+                owner_name=data["owner_name"],
+                phone_number=data["owner_phone"],
+                address=data["owner_address"],
+                reception_date=data["reception_date"],
+                email=None
+            )
+            
+            if result['success']:
+                # Hiển thị thông báo thành công
+                msg = QMessageBox(self)
+                msg.setIcon(QMessageBox.Icon.Information)
+                msg.setWindowTitle("Thành công")
+                msg.setText(result['message'])
+                msg.setInformativeText(
+                    f"Mã tiếp nhận: {result['reception_id']}\n"
+                    f"Biển số: {data['license_plate']}\n"
+                    f"Chủ xe: {data['owner_name']}\n"
+                    f"Ngày tiếp nhận: {data['reception_date']}"
+                )
+                msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+                msg.exec()
+                
+                # Lưu reception_id để có thể in biên nhận
+                self.last_reception_id = result['reception_id']
+                
+                # Reset form sau khi lưu thành công
+                self._on_reset_clicked()
+            else:
+                # Hiển thị lỗi
+                QMessageBox.critical(
+                    self,
+                    "Lỗi",
+                    f"Không thể tiếp nhận xe:\n{result['message']}"
+                )
+        except Exception as e:
+            logger.error(f"Error saving car reception: {e}")
+            QMessageBox.critical(
+                self,
+                "Lỗi",
+                f"Đã xảy ra lỗi khi lưu dữ liệu:\n{str(e)}"
+            )
 
     def _on_reset_clicked(self):
+        """Reset tất cả các trường nhập liệu về trạng thái ban đầu."""
         self.owner_name.clear()
         self.owner_phone.clear()
         self.owner_address.clear()
         self.license_plate.clear()
         self.brand.setCurrentIndex(0)
         self.reception_date.setDate(QDate.currentDate())
+        self.last_reception_id = None
+    
+    def _load_brands(self):
+        """Load danh sách hiệu xe từ database."""
+        try:
+            brands = self.service.get_all_brands()
+            # Clear existing items except placeholder
+            self.brand.clear()
+            self.brand.addItem("-- Chọn hiệu xe --")
+            
+            # Add brands from database
+            for brand in brands:
+                self.brand.addItem(brand['BrandName'])
+            
+            logger.info(f"Loaded {len(brands)} car brands")
+        except Exception as e:
+            logger.error(f"Failed to load car brands: {e}")
+            QMessageBox.warning(
+                self,
+                "Cảnh báo",
+                "Không thể tải danh sách hiệu xe từ database.\n"
+                "Vui lòng kiểm tra kết nối database."
+            )
 
     def _on_print_clicked(self):
         data = self.get_form_data()
