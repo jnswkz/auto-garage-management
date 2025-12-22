@@ -10,7 +10,7 @@ from presentation.views.pages.tra_cuu_xe_page import TraCuuXePage
 from presentation.views.pages.phieu_thu_page import PhieuThuPage
 from presentation.views.pages.bao_cao_doanh_so_page import BaoCaoDoanhSoPage
 from presentation.views.pages.bao_cao_ton_page import BaoCaoTonPage
-from presentation.views.pages.quan_ly_danh_muc_page import QuanLyDanhMucPage
+# from presentation.views.pages.quan_ly_danh_muc_page import QuanLyDanhMucPage
 from presentation.views.pages.thay_doi_quy_dinh_page import ThayDoiQuyDinhPage
 # from presentation.views.pages.quan_ly_user_page import QuanLyUserPage
 
@@ -21,7 +21,7 @@ __all__ = [
     "PhieuThuPage",
     "BaoCaoDoanhSoPage",
     "BaoCaoTonPage",
-    "QuanLyDanhMucPage",
+    # "QuanLyDanhMucPage",
     "ThayDoiQuyDinhPage",
     # "QuanLyUserPage",
 ]

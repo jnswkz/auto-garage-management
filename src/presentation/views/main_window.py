@@ -26,7 +26,7 @@ from presentation.views.pages import (
     PhieuThuPage,
     BaoCaoDoanhSoPage,
     BaoCaoTonPage,
-    QuanLyDanhMucPage,
+    # QuanLyDanhMucPage,
     ThayDoiQuyDinhPage,
     # QuanLyUserPage,
 )
@@ -46,7 +46,7 @@ class MainWindow(QMainWindow):
         (Messages.NAV_PHIEU_THU, PagePermissions.PHIEU_THU, PhieuThuPage),
         (Messages.NAV_BAO_CAO_DOANH_SO, PagePermissions.BAO_CAO_DOANH_SO, BaoCaoDoanhSoPage),
         (Messages.NAV_BAO_CAO_TON, PagePermissions.BAO_CAO_TON, BaoCaoTonPage),
-        (Messages.NAV_QUAN_LY_DANH_MUC, PagePermissions.QUAN_LY_DANH_MUC, QuanLyDanhMucPage),
+        # (Messages.NAV_QUAN_LY_DANH_MUC, PagePermissions.QUAN_LY_DANH_MUC, QuanLyDanhMucPage),
         (Messages.NAV_THAY_DOI_QUY_DINH, PagePermissions.THAY_DOI_QUY_DINH, ThayDoiQuyDinhPage),
 #         (Messages.NAV_QUAN_LY_USER, PagePermissions.QUAN_LY_USER, QuanLyUserPage),
     ]

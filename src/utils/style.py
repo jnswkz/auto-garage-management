@@ -265,5 +265,39 @@ STYLE = """
 
         QPushButton#btnDanger:hover { opacity: 0.92; }
 
+        QSpinBox {
+            background: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 6px 8px;
+            color: #111827;
+        }
+
+        QSpinBox:focus {
+            border: 1px solid #2563eb;
+        }
+
+        QTabWidget::pane {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            top: -1px;
+            background: #ffffff;
+        }
+
+        QTabBar::tab {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-bottom: none;
+            padding: 8px 12px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            color: #374151;
+        }
+
+        QTabBar::tab:selected {
+            background: #ffffff;
+            color: #111827;
+            font-weight: 600;
+        }
 
         """
