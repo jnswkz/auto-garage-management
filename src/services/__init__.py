@@ -10,6 +10,7 @@ from .vehicle_lookup_service import VehicleLookupService
 from .receipt_service import ReceiptService
 from .revenue_report_service import RevenueReportService
 from .stock_report_service import StockReportService
+from .system_settings_service import SystemSettingsService
 
 __all__ = [
     'CarReceptionService', 
@@ -17,5 +18,6 @@ __all__ = [
     'VehicleLookupService', 
     'ReceiptService',
     'RevenueReportService',
-    'StockReportService'
+    'StockReportService',
+    'SystemSettingsService'
 ]
