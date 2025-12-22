@@ -19,6 +19,12 @@ def _get_app_root() -> str:
     return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
+def _get_data_root(app_root: str) -> str:
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return sys._MEIPASS  # pyinstaller onedir places datas under _internal
+    return app_root
+
+
 def _configure_logging(app_root: str) -> None:
     log_dir = os.path.join(
         os.environ.get("LOCALAPPDATA") or app_root,
@@ -38,7 +44,8 @@ def main() -> None:
     app_root = _get_app_root()
     _configure_logging(app_root)
 
-    init_sql = os.path.join(app_root, "database", "init.sql")
+    data_root = _get_data_root(app_root)
+    init_sql = os.path.join(data_root, "database", "init.sql")
     mysql = PortableMySQL(app_root=app_root)
     mysql.start()
     if mysql.is_available():

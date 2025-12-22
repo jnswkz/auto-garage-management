@@ -93,13 +93,15 @@ class PortableMySQL:
         if not os.path.isfile(init_sql_path):
             raise FileNotFoundError(f"Init SQL not found: {init_sql_path}")
 
+        self._wait_for_mysql_ready()
+
         if self._database_exists():
             return
 
         logger.info("Initializing database from %s", init_sql_path)
         mysql_args = self._mysql_base_args()
         with open(init_sql_path, "rb") as handle:
-            subprocess.run(mysql_args, stdin=handle, check=True, creationflags=self._creation_flags())
+            self._run_mysql(mysql_args, stdin=handle)
 
     def apply_env(self) -> None:
         if not self.is_available():
@@ -186,13 +188,7 @@ class PortableMySQL:
                 f"WHERE SCHEMA_NAME='{self.database}';"
             ),
         ]
-        result = subprocess.run(
-            args,
-            check=True,
-            capture_output=True,
-            text=True,
-            creationflags=self._creation_flags(),
-        )
+        result = self._run_mysql(args, capture_output=True, text=True)
         return bool(result.stdout.strip())
 
     def _mysql_base_args(self) -> list[str]:
@@ -210,6 +206,63 @@ class PortableMySQL:
         if self.password:
             args.append(f"-p{self.password}")
         return args
+
+    def _wait_for_mysql_ready(self, timeout: int = 15) -> None:
+        start = time.time()
+        last_error: Optional[Exception] = None
+        while time.time() - start < timeout:
+            try:
+                if os.path.isfile(self.mysqladmin_path):
+                    args = [
+                        self.mysqladmin_path,
+                        "-h",
+                        self.host,
+                        "-P",
+                        str(self.port),
+                        "-u",
+                        self.user,
+                        "ping",
+                    ]
+                    if self.password:
+                        args.append(f"-p{self.password}")
+                    self._run_mysql(args, capture_output=True, text=True)
+                else:
+                    args = self._mysql_base_args() + ["-e", "SELECT 1;"]
+                    self._run_mysql(args, capture_output=True, text=True)
+                return
+            except subprocess.SubprocessError as exc:
+                last_error = exc
+                time.sleep(0.5)
+        if last_error:
+            logger.error("MySQL did not become ready: %s", last_error)
+        raise TimeoutError(f"MySQL did not become ready within {timeout} seconds.")
+
+    def _run_mysql(
+        self,
+        args: list[str],
+        stdin: Optional[object] = None,
+        capture_output: bool = False,
+        text: bool = False,
+    ) -> subprocess.CompletedProcess:
+        try:
+            stdout = subprocess.PIPE if capture_output else None
+            stderr = subprocess.PIPE
+            return subprocess.run(
+                args,
+                stdin=stdin,
+                check=True,
+                stdout=stdout,
+                stderr=stderr,
+                text=text,
+                creationflags=self._creation_flags(),
+            )
+        except subprocess.CalledProcessError as exc:
+            stderr = getattr(exc, "stderr", None)
+            if isinstance(stderr, bytes):
+                stderr = stderr.decode(errors="replace")
+            stderr = stderr.strip() if stderr else str(exc)
+            logger.error("MySQL command failed: %s", stderr)
+            raise
 
     @staticmethod
     def _is_port_open(host: str, port: int) -> bool:
