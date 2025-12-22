@@ -48,6 +48,16 @@ CREATE TABLE SUPPLIES (
     InventoryNumber INTEGER DEFAULT 0 COMMENT 'Inventory Quantity'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 5.1. Table SUPPLIES_IMPORT
+-- Stores supply import transactions
+CREATE TABLE SUPPLIES_IMPORT (
+    ImportId INTEGER AUTO_INCREMENT PRIMARY KEY COMMENT 'Import Transaction ID (Auto-increment)',
+    SuppliesId INTEGER NOT NULL COMMENT 'Supply ID (Foreign Key)',
+    ImportAmount INTEGER NOT NULL COMMENT 'Quantity Imported',
+    ImportDate DATE NOT NULL COMMENT 'Import Date',
+    FOREIGN KEY (SuppliesId) REFERENCES SUPPLIES(SuppliesId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- 6. Table WAGE
 -- Stores the list of labor/service types
 CREATE TABLE WAGE (
