@@ -34,13 +34,13 @@ class LoginController:
         """
         # Check if user exists
         if username not in TEMP_USERS:
-            return False, "Ten dang nhap hoac mat khau khong dung!"
+            return False, "Tên đăng nhập hoặc mật khẩu không đúng!q"
         
         user_data = TEMP_USERS[username]
         
         # Verify password
         if user_data["password"] != password:
-            return False, "Ten dang nhap hoac mat khau khong dung!"
+            return False, "Tên đăng nhập hoặc mật khẩu không đúng!"
         
         # Create session
         user_session = UserSession(

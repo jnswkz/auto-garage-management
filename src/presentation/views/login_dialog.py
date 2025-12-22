@@ -57,7 +57,7 @@ class LoginDialog(QDialog):
         
         # Username field
         self.username_input = QLineEdit()
-        self.username_input.setPlaceholderText("Nhap ten dang nhap")
+        self.username_input.setPlaceholderText("Nhập tên đăng nhập")
         self.username_input.setStyleSheet("""
             QLineEdit {
                 padding: 8px;
@@ -73,7 +73,7 @@ class LoginDialog(QDialog):
         
         # Password field
         self.password_input = QLineEdit()
-        self.password_input.setPlaceholderText("Nhap mat khau")
+        self.password_input.setPlaceholderText("Nhập mật khẩu")
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.password_input.setStyleSheet("""
             QLineEdit {
