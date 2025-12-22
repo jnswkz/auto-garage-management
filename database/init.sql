@@ -1,4 +1,4 @@
-﻿-- MySQL dump 10.13  Distrib 8.0.44, for Win64 (x86_64)
+﻿?-- MySQL dump 10.13  Distrib 8.0.44, for Win64 (x86_64)
 --
 -- Host: localhost    Database: garagemanagement
 -- ------------------------------------------------------
@@ -177,7 +177,7 @@ UNLOCK TABLES;
 
 LOCK TABLES `car` WRITE;
 /*!40000 ALTER TABLE `car` DISABLE KEYS */;
-INSERT INTO `car` VALUES ('30F-111.22',4,'Pháº¡m Minh DÅ©ng','0905111222','HoÃ n Kiáº¿m, HÃ  Ná»™i','dung.pham@email.com'),('51A',5,'AAAA','9237287355','aaa',NULL),('51H-987.65',2,'Tráº§n Thá»‹ BÃ­ch','0912345678','45 Nguyá»…n TrÃ£i, Q5, TP.HCM','bich.tran@email.com'),('59A-123.45',1,'Nguyá»…n VÄƒn An','0909123456','123 LÃª Lá»£i, Q1, TP.HCM','an.nguyen@email.com'),('59K-234.56',1,'VÃµ Thá»‹ Em','0933444555','Thá»§ Äá»©c, TP.HCM','em.vo@email.com'),('60C-555.88',3,'LÃª HoÃ ng CÆ°á»ng','0988777666','BiÃªn HÃ²a, Äá»“ng Nai','cuong.le@email.com'),('62A-616.36',5,'VÃµ ThÃ nh Äáº¡t','0369472671','Äá»‹a ngá»¥c',NULL);
+INSERT INTO `car` VALUES ('30F-111.22',4,'Phạm Minh Dũng','0905111222','Hoàn Kiếm, Hà Nội','dung.pham@email.com'),('51A',5,'AAAA','9237287355','aaa',NULL),('51H-987.65',2,'Trần Thị Bích','0912345678','45 Nguyễn Trãi, Q5, TP.HCM','bich.tran@email.com'),('59A-123.45',1,'Nguyễn Văn An','0909123456','123 Lê Lợi, Q1, TP.HCM','an.nguyen@email.com'),('59K-234.56',1,'Võ Thị Em','0933444555','Thủ Đức, TP.HCM','em.vo@email.com'),('60C-555.88',3,'Lê Hoàng Cường','0988777666','Biên Hòa, Đồng Nai','cuong.le@email.com'),('62A-616.36',5,'Võ Thành Đạt','0369472671','Địa ngọc',NULL);
 /*!40000 ALTER TABLE `car` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -195,13 +195,13 @@ UNLOCK TABLES;
 
 LOCK TABLES `supplies` WRITE;
 /*!40000 ALTER TABLE `supplies` DISABLE KEYS */;
-INSERT INTO `supplies` VALUES (1,'GÆ°Æ¡ng chiáº¿u háº­u Toyota',1500000.00,20),(2,'Bá»‘ tháº¯ng Ä‘Ä©a',450000.00,50),(3,'Nhá»›t Castrol 4L',550000.00,100),(4,'Lá»c giÃ³ Ä‘iá»u hÃ²a',250000.00,30),(5,'Bugi Denso',120000.00,60),(6,'Gáº¡t mÆ°a Bosch',300000.00,40);
+INSERT INTO `supplies` VALUES (1,'Gương chiếu hậu Toyota',1500000.00,20),(2,'Bộ thắng đĩa',450000.00,50),(3,'Nhớt Castrol 4L',550000.00,100),(4,'Lọc gió điều hòa',250000.00,30),(5,'Bugi Denso',120000.00,60),(6,'Gạt mưa Bosch',300000.00,40);
 /*!40000 ALTER TABLE `supplies` ENABLE KEYS */;
 UNLOCK TABLES;
 
 LOCK TABLES `wage` WRITE;
 /*!40000 ALTER TABLE `wage` DISABLE KEYS */;
-INSERT INTO `wage` VALUES (1,'Thay nhá»›t mÃ¡y',50000.00),(2,'Rá»­a xe bá»t tuyáº¿t',70000.00),(3,'Vá»‡ sinh khoang mÃ¡y',300000.00),(4,'Thay mÃ¡ phanh',150000.00),(5,'Kiá»ƒm tra tá»•ng quÃ¡t',100000.00),(6,'SÆ¡n dáº·m vÃ¡',500000.00);
+INSERT INTO `wage` VALUES (1,'Thay nhớt máy',50000.00),(2,'Rửa xe bọt tuyết',70000.00),(3,'Vệ sinh khoang máy',300000.00),(4,'Thay má phanh',150000.00),(5,'Kiểm tra tổng quát',100000.00),(6,'Sơn dặm vá',500000.00);
 /*!40000 ALTER TABLE `wage` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -219,4 +219,6 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 -- Dump completed on 2025-12-22 17:48:48
+
+
 
