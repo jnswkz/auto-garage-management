@@ -29,7 +29,7 @@ class LoginDialog(QDialog):
     def _setup_ui(self):
         """Initialize the user interface."""
         self.setWindowTitle(Messages.LOGIN_TITLE)
-        self.setFixedSize(350, 200)
+        self.setFixedSize(550, 300)
         self.setWindowFlags(
             self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint
         )
