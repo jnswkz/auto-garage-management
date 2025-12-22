@@ -1,7 +1,4 @@
 # src/presentation/views/pages/tiep_nhan_xe_page.py
-"""
-Tiep Nhan Xe (Vehicle Reception) page - BM1 form (UI only).
-"""
 
 from PyQt6.QtWidgets import (
     QWidget,
@@ -130,7 +127,7 @@ class TiepNhanXePage(QWidget):
         container_layout.setSpacing(12)
 
         # ===== Header =====
-        title = QLabel("TIẾP NHẬN XE SỬA (BM1)")
+        title = QLabel("TIẾP NHẬN XE SỬA")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setObjectName("pageTitle")
 
