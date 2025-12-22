@@ -29,6 +29,7 @@ from presentation.views.pages import (
     # QuanLyDanhMucPage,
     ThayDoiQuyDinhPage,
     # QuanLyUserPage,
+    NhapVatTuPage,
 )
 
 
@@ -49,6 +50,7 @@ class MainWindow(QMainWindow):
         # (Messages.NAV_QUAN_LY_DANH_MUC, PagePermissions.QUAN_LY_DANH_MUC, QuanLyDanhMucPage),
         (Messages.NAV_THAY_DOI_QUY_DINH, PagePermissions.THAY_DOI_QUY_DINH, ThayDoiQuyDinhPage),
 #         (Messages.NAV_QUAN_LY_USER, PagePermissions.QUAN_LY_USER, QuanLyUserPage),
+        (Messages.NAV_NHAP_VAT_TU, PagePermissions.NHAP_VAT_TU, NhapVatTuPage),
     ]
     
     def __init__(self, role: str, username: str, parent=None):

@@ -59,3 +59,8 @@ class Messages:
     
     PAGE_QUAN_LY_USER_TITLE = "QUẢN LÝ NGƯỜI DÙNG"
     PAGE_QUAN_LY_USER_DESC = "Quản lý tài khoản người dùng trong hệ thống."
+
+    NAV_NHAP_VAT_TU = "Nhập vật tư"
+    PAGE_NHAP_VAT_TU_TITLE = "NHẬP VẬT TƯ"
+    PAGE_NHAP_VAT_TU_DESC = "Tạo phiếu nhập vật tư vào kho."
+

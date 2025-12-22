@@ -24,6 +24,7 @@ class PagePermissions:
     QUAN_LY_DANH_MUC = "quan_ly_danh_muc"
     THAY_DOI_QUY_DINH = "thay_doi_quy_dinh"
     QUAN_LY_USER = "quan_ly_user"
+    NHAP_VAT_TU = "nhap_vat_tu"
 
 
 # Define permissions for each role
@@ -38,6 +39,7 @@ ROLE_PERMISSIONS = {
         PagePermissions.QUAN_LY_DANH_MUC,
         PagePermissions.THAY_DOI_QUY_DINH,
         PagePermissions.QUAN_LY_USER,
+        PagePermissions.NHAP_VAT_TU,
     ],
     Roles.STAFF: [
         PagePermissions.TIEP_NHAN_XE,
