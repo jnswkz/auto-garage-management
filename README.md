@@ -24,10 +24,50 @@ A PyQt6 desktop application for managing an auto garage business.
 
 - Python 3.10 or higher
 - PyQt6
+- MySQL Server 8.0 or higher
+- mysql-connector-python
+- python-dotenv
 
 ## Installation
 
-### 1. Create a virtual environment
+### 1. Install MySQL Server
+
+Make sure you have MySQL Server installed and running on your machine.
+
+### 2. Create Database
+
+Run the SQL scripts to create the database and tables:
+
+```bash
+# Connect to MySQL
+mysql -u root -p
+
+# Create database and tables
+mysql -u root -p < database/TABLE+trigger.sql
+
+# Insert sample data (optional)
+mysql -u root -p < database/data.sql
+```
+
+### 3. Configure Database Connection
+
+Copy the `.env.example` file to `.env` and update with your database credentials:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` file:
+
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_NAME=GarageManagement
+```
+
+### 4. Create a virtual environment
 
 ```bash
 # Windows
@@ -39,10 +79,10 @@ python3 -m venv venv
 source venv/bin/activate
 ```
 
-### 2. Install dependencies
+### 5. Install dependencies
 
 ```bash
-pip install PyQt6
+pip install mysql-connector-python python-dotenv PyQt6
 ```
 
 Or install from pyproject.toml:
