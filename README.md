@@ -1,0 +1,108 @@
+# Auto Garage Management System
+
+A PyQt6 desktop application for managing an auto garage business.
+
+## Features
+
+- User authentication with role-based access control
+- Vehicle reception management (Tiep nhan xe)
+- Repair order management (Phieu sua chua)
+- Vehicle lookup (Tra cuu xe)
+- Payment receipts (Phieu thu)
+- Revenue reports (Bao cao doanh so)
+- Inventory reports (Bao cao ton)
+- Category management (Quan ly danh muc)
+- System configuration (Thay doi quy dinh)
+- User management (Quan ly user)
+
+## Roles
+
+- **ADMIN**: Full access to all features
+- **STAFF**: Access to vehicle reception, repair orders, vehicle lookup, and payment receipts only
+
+## Requirements
+
+- Python 3.10 or higher
+- PyQt6
+
+## Installation
+
+### 1. Create a virtual environment
+
+```bash
+# Windows
+python -m venv venv
+venv\Scripts\activate
+
+# macOS/Linux
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 2. Install dependencies
+
+```bash
+pip install PyQt6
+```
+
+Or install from pyproject.toml:
+
+```bash
+pip install -e .
+```
+
+## Running the Application
+
+```bash
+cd src
+python main.py
+```
+
+## Test Credentials
+
+| Username | Password | Role  |
+|----------|----------|-------|
+| admin    | admin    | ADMIN |
+| staff    | staff    | STAFF |
+
+## Project Structure
+
+```
+auto-garage-management/
+    pyproject.toml
+    README.md
+    src/
+        main.py
+        app/
+            __init__.py
+            session.py
+        presentation/
+            __init__.py
+            permissions.py
+            views/
+                __init__.py
+                login_dialog.py
+                main_window.py
+                pages/
+                    __init__.py
+                    tiep_nhan_xe_page.py
+                    phieu_sua_chua_page.py
+                    tra_cuu_xe_page.py
+                    phieu_thu_page.py
+                    bao_cao_doanh_so_page.py
+                    bao_cao_ton_page.py
+                    quan_ly_danh_muc_page.py
+                    thay_doi_quy_dinh_page.py
+                    quan_ly_user_page.py
+            controllers/
+                __init__.py
+                login_controller.py
+                main_controller.py
+        utils/
+            __init__.py
+            messages.py
+```
+
+## License
+
+MIT License

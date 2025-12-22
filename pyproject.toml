@@ -1,7 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "garage-management"
-version = "0.1.0"
-description = "Add your description here"
+name = "auto-garage-management"
+version = "1.0.0"
+description = "Auto Garage Management System - PyQt6 Desktop Application"
 readme = "README.md"
-requires-python = ">=3.13"
-dependencies = []
+requires-python = ">=3.10"
+dependencies = [
+    "PyQt6>=6.4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "isort>=5.0.0",
+]
