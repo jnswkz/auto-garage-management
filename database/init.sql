@@ -1,4 +1,4 @@
-﻿?-- MySQL dump 10.13  Distrib 8.0.44, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.44, for Win64 (x86_64)
 --
 -- Host: localhost    Database: garagemanagement
 -- ------------------------------------------------------
@@ -164,6 +164,15 @@ CREATE TABLE `stock_report_details` (
   CONSTRAINT `stock_report_details_ibfk_1` FOREIGN KEY (`StockReportId`) REFERENCES `stock_report` (`StockReportId`),
   CONSTRAINT `stock_report_details_ibfk_2` FOREIGN KEY (`SuppliesId`) REFERENCES `supplies` (`SuppliesId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE SUPPLIES_IMPORT (
+    ImportId INTEGER AUTO_INCREMENT PRIMARY KEY COMMENT 'Import Transaction ID (Auto-increment)',
+    SuppliesId INTEGER NOT NULL COMMENT 'Supply ID (Foreign Key)',
+    ImportAmount INTEGER NOT NULL COMMENT 'Quantity Imported',
+    ImportDate DATE NOT NULL COMMENT 'Import Date',
+    FOREIGN KEY (SuppliesId) REFERENCES SUPPLIES(SuppliesId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 
 --
 -- Insert data after all table and trigger definitions
