@@ -6,5 +6,6 @@ Contains service classes that handle business operations.
 
 from .car_reception_service import CarReceptionService
 from .repair_service import RepairService
+from .vehicle_lookup_service import VehicleLookupService
 
-__all__ = ['CarReceptionService', 'RepairService']
+__all__ = ['CarReceptionService', 'RepairService', 'VehicleLookupService']
