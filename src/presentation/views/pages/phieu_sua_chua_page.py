@@ -23,7 +23,12 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
     QHeaderView,
 )
+import logging
+
 from utils.style import STYLE
+from services.repair_service import RepairService
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -45,11 +50,13 @@ class PhieuSuaChuaPage(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._supplies = self._mock_supplies()
-        self._wages = self._mock_wages()
+        self.service = RepairService()
+        self._supplies = []
+        self._wages = []
 
         self._setup_ui()
         self._apply_style()
+        self._load_supplies_and_wages()
         self._recalc_total()
 
     # ---------------- UI ----------------
@@ -330,6 +337,70 @@ class PhieuSuaChuaPage(QWidget):
             total += self._parse_money(item.text())
         self.lbl_total.setText(self._fmt_money(total))
 
+    # ---------------- Data Loading ----------------
+    def _load_supplies_and_wages(self):
+        """Load danh sách vật tư và tiền công từ database."""
+        try:
+            # Load supplies
+            db_supplies = self.service.get_all_supplies()
+            self._supplies = [
+                SupplyItem(s['SuppliesName'], int(s['SuppliesPrice']))
+                for s in db_supplies
+            ]
+            
+            # Load wages
+            db_wages = self.service.get_all_wages()
+            self._wages = [
+                WageItem(w['WageName'], int(w['WageValue']))
+                for w in db_wages
+            ]
+            
+            logger.info(f"Loaded {len(self._supplies)} supplies and {len(self._wages)} wages")
+            
+            # Refresh comboboxes in all existing rows
+            for r in range(self.table.rowCount()):
+                self._refresh_row_combos(r)
+                
+        except Exception as e:
+            logger.error(f"Failed to load supplies and wages: {e}")
+            QMessageBox.warning(
+                self,
+                "Cảnh báo",
+                "Không thể tải danh sách vật tư và tiền công từ database.\n"
+                "Vui lòng kiểm tra kết nối database."
+            )
+    
+    def _refresh_row_combos(self, row: int):
+        """Refresh combobox items in a specific row."""
+        if row < 0 or row >= self.table.rowCount():
+            return
+        
+        # Refresh supplies combobox
+        cb_supply: QComboBox = self.table.cellWidget(row, 1)
+        if cb_supply:
+            current_text = cb_supply.currentText()
+            cb_supply.clear()
+            cb_supply.addItem("-- Chọn vật tư --")
+            for s in self._supplies:
+                cb_supply.addItem(s.name)
+            # Restore selection if it still exists
+            idx = cb_supply.findText(current_text)
+            if idx >= 0:
+                cb_supply.setCurrentIndex(idx)
+        
+        # Refresh wages combobox
+        cb_wage: QComboBox = self.table.cellWidget(row, 4)
+        if cb_wage:
+            current_text = cb_wage.currentText()
+            cb_wage.clear()
+            cb_wage.addItem("-- Chọn tiền công --")
+            for w in self._wages:
+                cb_wage.addItem(w.name)
+            # Restore selection if it still exists
+            idx = cb_wage.findText(current_text)
+            if idx >= 0:
+                cb_wage.setCurrentIndex(idx)
+
     # ---------------- Actions ----------------
     def _uppercase_plate(self):
         txt = self.license_plate.text()
@@ -367,8 +438,10 @@ class PhieuSuaChuaPage(QWidget):
         }
 
     def _on_save_clicked(self):
+        """Xử lý khi người dùng nhấn nút Lưu phiếu."""
         data = self.get_form_data()
 
+        # Validate dữ liệu đầu vào
         missing = []
         if not data["license_plate"]:
             missing.append("Biển số xe")
@@ -378,18 +451,103 @@ class PhieuSuaChuaPage(QWidget):
         if missing:
             QMessageBox.warning(self, "Thiếu thông tin", "Vui lòng nhập:\n- " + "\n- ".join(missing))
             return
-
-        QMessageBox.information(
-            self,
-            "OK",
-            "Đã nhận dữ liệu phiếu (chưa lưu DB).\n\n"
-            f"Biển số: {data['license_plate']}\n"
-            f"Ngày sửa: {data['repair_date']}\n"
-            f"Tổng: {self._fmt_money(data['total'])}\n"
-            f"Số dòng: {len(data['details'])}"
-        )
+        
+        # Validate chi tiết sửa chữa
+        for idx, detail in enumerate(data['details'], 1):
+            if not detail['content']:
+                QMessageBox.warning(self, "Thiếu thông tin", f"Vui lòng nhập nội dung cho dòng {idx}")
+                return
+            if detail['supply'] == "-- Chọn vật tư --":
+                QMessageBox.warning(self, "Thiếu thông tin", f"Vui lòng chọn vật tư cho dòng {idx}")
+                return
+            if detail['qty'] <= 0:
+                QMessageBox.warning(self, "Thông tin không hợp lệ", f"Số lượng phải > 0 cho dòng {idx}")
+                return
+        
+        try:
+            # 1. Tìm phiếu tiếp nhận xe theo biển số
+            reception = self.service.get_latest_reception_by_license_plate(data['license_plate'])
+            
+            if not reception:
+                QMessageBox.critical(
+                    self,
+                    "Lỗi",
+                    f"Không tìm thấy phiếu tiếp nhận cho xe {data['license_plate']}.\n"
+                    "Vui lòng tiếp nhận xe trước khi tạo phiếu sửa chữa."
+                )
+                return
+            
+            # 2. Kiểm tra tồn kho vật tư
+            for detail in data['details']:
+                check = self.service.check_supply_inventory(
+                    detail['supply'],
+                    detail['qty']
+                )
+                if not check['available']:
+                    QMessageBox.warning(
+                        self,
+                        "Không đủ tồn kho",
+                        check['message']
+                    )
+                    return
+            
+            # 3. Chuẩn bị dữ liệu chi tiết
+            repair_details = []
+            for detail in data['details']:
+                repair_details.append({
+                    'content': detail['content'],
+                    'supply_name': detail['supply'],
+                    'supply_amount': detail['qty'],
+                    'wage_name': detail['wage'] if detail['wage'] != "-- Chọn tiền công --" else None
+                })
+            
+            # 4. Tạo phiếu sửa chữa
+            result = self.service.create_repair_ticket(
+                reception_id=reception['ReceptionId'],
+                repair_date=data['repair_date'],
+                repair_money=data['total'],
+                details=repair_details
+            )
+            
+            if result['success']:
+                # Hiển thị thông báo thành công
+                msg = QMessageBox(self)
+                msg.setIcon(QMessageBox.Icon.Information)
+                msg.setWindowTitle("Thành công")
+                msg.setText(result['message'])
+                msg.setInformativeText(
+                    f"Mã phiếu sửa chữa: {result['repair_id']}\n"
+                    f"Biển số xe: {data['license_plate']}\n"
+                    f"Chủ xe: {reception['OwnerName']}\n"
+                    f"Ngày sửa: {data['repair_date']}\n"
+                    f"Tổng tiền: {self._fmt_money(data['total'])}\n"
+                    f"Số dòng chi tiết: {len(data['details'])}"
+                )
+                msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+                msg.exec()
+                
+                # Lưu repair_id để có thể in phiếu
+                self.last_repair_id = result['repair_id']
+                
+                # Reset form sau khi lưu thành công
+                self._on_reset_clicked()
+            else:
+                # Hiển thị lỗi
+                QMessageBox.critical(
+                    self,
+                    "Lỗi",
+                    f"Không thể tạo phiếu sửa chữa:\n{result['message']}"
+                )
+        except Exception as e:
+            logger.error(f"Error saving repair ticket: {e}")
+            QMessageBox.critical(
+                self,
+                "Lỗi",
+                f"Đã xảy ra lỗi khi lưu dữ liệu:\n{str(e)}"
+            )
 
     def _on_reset_clicked(self):
+        """Reset tất cả các trường nhập liệu về trạng thái ban đầu."""
         self.license_plate.clear()
         self.note.clear()
         self.repair_date.setDate(QDate.currentDate())
@@ -397,6 +555,7 @@ class PhieuSuaChuaPage(QWidget):
         self.table.setRowCount(0)
         self._add_row()
         self._recalc_total()
+        self.last_repair_id = None
 
     def _on_print_clicked(self):
         # MVP: preview dialog (làm sau). Hiện tại show thông tin ngắn.
