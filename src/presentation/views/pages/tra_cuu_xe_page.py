@@ -1,4 +1,4 @@
-# src/presentation/views/pages/tra_cuu_xe_page.py
+﻿# src/presentation/views/pages/tra_cuu_xe_page.py
 """
 Tra Cuu Xe (Vehicle Lookup) page - BM3 (UI only).
 """
@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
 import logging
 
 from utils.style import STYLE
+from utils.print_dialog import print_widget_with_dialog
 from services.vehicle_lookup_service import VehicleLookupService
 
 logger = logging.getLogger(__name__)
@@ -245,8 +246,10 @@ class TraCuuXePage(QWidget):
         self._apply_filter()
 
     def _on_print_clicked(self):
-        # MVP: preview print (sau này thay QPrinter)
-        QMessageBox.information(self, "In danh sách (demo)", "Chức năng in danh sách sẽ làm sau.")
+        print_widget_with_dialog(self, self, "In danh sach")
 
     def _fmt_money(self, v: int) -> str:
         return f"{v:,}"
+
+
+

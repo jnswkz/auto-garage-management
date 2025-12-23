@@ -1,4 +1,4 @@
-# src/presentation/views/pages/tiep_nhan_xe_page.py
+﻿# src/presentation/views/pages/tiep_nhan_xe_page.py
 
 from PyQt6.QtWidgets import (
     QWidget,
@@ -23,6 +23,7 @@ from services.car_reception_service import CarReceptionService
 
 logger = logging.getLogger(__name__)
 from utils.style import STYLE
+from utils.print_dialog import print_widget_with_dialog
 
 class BienNhanTiepNhanDialog(QDialog):
 
@@ -103,10 +104,8 @@ class BienNhanTiepNhanDialog(QDialog):
         """)
 
     def _on_print(self):
-        # MVP: chỉ thông báo (sau này bạn thay bằng QPrinter)
-        QMessageBox.information(self, "In", "Đã in.")
-        self.accept()
-
+        if print_widget_with_dialog(self, self, "In bien nhan"):
+            self.accept()
 
 class TiepNhanXePage(QWidget):
     """Page for receiving vehicles into the garage (BM1)."""
@@ -134,7 +133,7 @@ class TiepNhanXePage(QWidget):
         container_layout.setSpacing(12)
 
         # ===== Header =====
-        title = QLabel("TIẾP NHẬN XE SỬA")
+        title = QLabel("BIÊN NHẬN TIẾP NHẬN XE SỬA")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setObjectName("pageTitle")
 
@@ -286,7 +285,7 @@ class TiepNhanXePage(QWidget):
                 msg = QMessageBox(self)
                 msg.setIcon(QMessageBox.Icon.Information)
                 msg.setWindowTitle("Thành công")
-                msg.setText(result['message'])
+                msg.setText(result["message"])
                 msg.setInformativeText(
                     f"Mã tiếp nhận: {result['reception_id']}\n"
                     f"Biển số: {data['license_plate']}\n"
@@ -306,7 +305,7 @@ class TiepNhanXePage(QWidget):
                 QMessageBox.critical(
                     self,
                     "Lỗi",
-                    f"Không thể tiếp nhận xe:\n{result['message']}"
+                    f"Không thể tiếp nhận xe:\n{result["message"]}"
                 )
         except Exception as e:
             logger.error(f"Error saving car reception: {e}")
@@ -369,3 +368,7 @@ class TiepNhanXePage(QWidget):
 
         dlg = BienNhanTiepNhanDialog(data, parent=self)
         dlg.exec()
+
+
+
+

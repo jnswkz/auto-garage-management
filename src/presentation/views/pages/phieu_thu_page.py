@@ -2,24 +2,26 @@
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt, QDate
-from PyQt6.QtGui import QIntValidator
-from PyQt6.QtWidgets import (
-    QWidget,
-    QLabel,
-    QLineEdit,
-    QDateEdit,
-    QPushButton,
-    QHBoxLayout,
-    QVBoxLayout,
-    QGridLayout,
-    QGroupBox,
-    QMessageBox,
-)
 import logging
 
-from utils.style import STYLE
+from PyQt6.QtCore import QDate, Qt
+from PyQt6.QtGui import QIntValidator
+from PyQt6.QtWidgets import (
+    QDateEdit,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
 from services.receipt_service import ReceiptService
+from utils.print_dialog import print_widget_with_dialog
+from utils.style import STYLE
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +34,7 @@ class PhieuThuPage(QWidget):
         super().__init__(parent)
         # Nếu bạn apply STYLE toàn app rồi thì có thể bỏ dòng này
         self.setStyleSheet(STYLE)
-        
+
         self.service = ReceiptService()
         self.current_reception_id = None  # Lưu ReceptionId hiện tại để tạo phiếu thu
 
@@ -55,7 +57,10 @@ class PhieuThuPage(QWidget):
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setObjectName("pageTitle")
 
-        subtitle = QLabel("Nhập biển số để lấy tiền nợ, sau đó lập phiếu thu. (Tiền thu không vượt quá tiền nợ)")
+        subtitle = QLabel(
+            "Nhập biển số để lấy tiền nợ, sau đó lập phiếu thu. "
+            "(Tiền thu không vượt quá tiền nợ)"
+        )
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle.setWordWrap(True)
         subtitle.setObjectName("pageSubtitle")
@@ -182,7 +187,7 @@ class PhieuThuPage(QWidget):
         if not plate:
             QMessageBox.warning(self, "Thiếu thông tin", "Vui lòng nhập biển số.")
             return
-        
+
         try:
             # Lấy thông tin xe và tổng nợ
             info = self.service.get_vehicle_debt_info(plate)
@@ -195,14 +200,14 @@ class PhieuThuPage(QWidget):
                     f"Không tìm thấy xe có biển số {plate} trong hệ thống."
                 )
                 return
-            
-            total_debt = float(info['TotalDebt']) if info['TotalDebt'] else 0
-            
+
+            total_debt = float(info["TotalDebt"]) if info["TotalDebt"] else 0
+
             if total_debt <= 0:
                 self._apply_view_state(empty=False)
-                self.out_owner.setText(info['OwnerName'])
-                self.out_phone.setText(info['PhoneNumber'] or '')
-                self.out_address.setText(info['Address'] or '')
+                self.out_owner.setText(info["OwnerName"])
+                self.out_phone.setText(info["PhoneNumber"] or "")
+                self.out_address.setText(info["Address"] or "")
                 self._set_debt(0)
                 self.lbl_debt_hint.setText("Xe này không có nợ.")
                 self.current_reception_id = None
@@ -212,7 +217,7 @@ class PhieuThuPage(QWidget):
                     f"Xe {plate} không có công nợ."
                 )
                 return
-            
+
             # Lấy phiếu tiếp nhận mới nhất có nợ
             reception = self.service.get_latest_reception_with_debt(plate)
             if not reception:
@@ -224,22 +229,22 @@ class PhieuThuPage(QWidget):
                     "Không tìm thấy phiếu tiếp nhận có nợ cho xe này."
                 )
                 return
-            
+
             # Hiển thị thông tin
             self._apply_view_state(empty=False)
-            self.out_owner.setText(info['OwnerName'])
-            self.out_phone.setText(info['PhoneNumber'] or '')
-            self.out_address.setText(info['Address'] or '')
+            self.out_owner.setText(info["OwnerName"])
+            self.out_phone.setText(info["PhoneNumber"] or "")
+            self.out_address.setText(info["Address"] or "")
             self._set_debt(int(total_debt))
-            self.current_reception_id = reception['ReceptionId']
-            
+            self.current_reception_id = reception["ReceptionId"]
+
             self.lbl_debt_hint.setText("Quy định: Tiền thu không vượt quá tiền nợ.")
             self._on_amount_changed()
-            
-            logger.info(f"Loaded debt info for {plate}: {total_debt}")
-            
+
+            logger.info("Loaded debt info for %s: %s", plate, total_debt)
+
         except Exception as e:
-            logger.error(f"Error loading vehicle debt info: {e}")
+            logger.error("Error loading vehicle debt info: %s", e)
             self._apply_view_state(empty=True)
             self.current_reception_id = None
             QMessageBox.critical(
@@ -260,7 +265,7 @@ class PhieuThuPage(QWidget):
         if not plate:
             QMessageBox.warning(self, "Thiếu thông tin", "Vui lòng nhập biển số và tải thông tin.")
             return
-        
+
         if not self.current_reception_id:
             QMessageBox.warning(self, "Thiếu thông tin", "Vui lòng bấm 'Tải thông tin' trước.")
             return
@@ -281,23 +286,23 @@ class PhieuThuPage(QWidget):
                 f"Tiền thu: {self._fmt_money(amount)}"
             )
             return
-        
+
         try:
             # Tạo phiếu thu
             result = self.service.create_receipt(
                 reception_id=self.current_reception_id,
-                receipt_date=self.receipt_date.date().toString('yyyy-MM-dd'),
-                money_amount=amount
+                receipt_date=self.receipt_date.date().toString("yyyy-MM-dd"),
+                money_amount=amount,
             )
-            
-            if result['success']:
-                remaining_debt = result.get('remaining_debt', 0)
-                
+
+            if result["success"]:
+                remaining_debt = result.get("remaining_debt", 0)
+
                 # Hiển thị thông báo thành công
                 msg = QMessageBox(self)
                 msg.setIcon(QMessageBox.Icon.Information)
                 msg.setWindowTitle("Thành công")
-                msg.setText(result['message'])
+                msg.setText(result["message"])
                 msg.setInformativeText(
                     f"Mã phiếu thu: {result['receipt_id']}\n"
                     f"Biển số: {plate}\n"
@@ -307,15 +312,15 @@ class PhieuThuPage(QWidget):
                 )
                 msg.setStandardButtons(QMessageBox.StandardButton.Ok)
                 msg.exec()
-                
+
                 # Lưu receipt_id để có thể in phiếu
-                self.last_receipt_id = result['receipt_id']
-                
+                self.last_receipt_id = result["receipt_id"]
+
                 # Cập nhật hiển thị nợ mới
                 self._set_debt(int(remaining_debt))
                 self.inp_amount.clear()
                 self._on_amount_changed()
-                
+
                 # Nếu hết nợ, reset form
                 if remaining_debt <= 0:
                     QMessageBox.information(
@@ -332,7 +337,7 @@ class PhieuThuPage(QWidget):
                     f"Không thể tạo phiếu thu:\n{result['message']}"
                 )
         except Exception as e:
-            logger.error(f"Error saving receipt: {e}")
+            logger.error("Error saving receipt: %s", e)
             QMessageBox.critical(
                 self,
                 "Lỗi",
@@ -345,18 +350,13 @@ class PhieuThuPage(QWidget):
         if not plate or not self.current_reception_id:
             QMessageBox.information(self, "In phiếu", "Vui lòng tải thông tin xe trước.")
             return
-        
+
         amount = self.inp_amount.text().strip()
         if not amount or int(amount or "0") <= 0:
             QMessageBox.information(self, "In phiếu", "Vui lòng nhập số tiền thu trước khi in.")
             return
-        
-        QMessageBox.information(
-            self,
-            "In phiếu (demo)",
-            f"Sẽ in phiếu thu cho xe: {plate}\n"
-            f"Số tiền: {self._fmt_money(int(amount))}"
-        )
+
+        print_widget_with_dialog(self, self, "In phieu thu")
 
     def _on_reset_clicked(self):
         """Reset form về trạng thái ban đầu."""

@@ -1,4 +1,4 @@
-# src/presentation/views/pages/bao_cao_ton_kho_page.py
+﻿# src/presentation/views/pages/bao_cao_ton_kho_page.py
 
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.style import STYLE
+from utils.print_dialog import print_widget_with_dialog
 from services import StockReportService
 
 
@@ -160,10 +161,8 @@ class BaoCaoTonPage(QWidget):
         year = int(year_text)
 
         try:
-            # D1 → Service → D3 → D4 → D6
             report = self.service.get_or_create_monthly_report(month, year)
-            self._render(report['items'])
-            
+            self._render(report["items"])
         except Exception as e:
             QMessageBox.critical(self, "Lỗi", f"Không thể lập báo cáo:\n{str(e)}")
             return
@@ -175,9 +174,9 @@ class BaoCaoTonPage(QWidget):
 
     def _on_print_clicked(self):
         if self.table.rowCount() == 0:
-            QMessageBox.information(self, "In báo cáo (demo)", "Chưa có dữ liệu để in. Hãy lập báo cáo trước.")
+            QMessageBox.information(self, "In báo cáo", "Chưa có dữ liệu để in. Hãy lập báo cáo trước.")
             return
-        QMessageBox.information(self, "In báo cáo (demo)", "Chức năng in báo cáo tồn kho sẽ làm sau (QPrinter).")
+        print_widget_with_dialog(self, self, "In báo cáo tồn kho")
 
     # ---------------- Render ----------------
     def _render(self, items: list[dict]):
@@ -206,5 +205,10 @@ class BaoCaoTonPage(QWidget):
             item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
         self.table.setItem(row, col, item)
+
+
+
+
+
 
 

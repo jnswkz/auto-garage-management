@@ -1,4 +1,4 @@
-# src/presentation/views/pages/phieu_sua_chua_page.py
+﻿# src/presentation/views/pages/phieu_sua_chua_page.py
 
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.style import STYLE
+from utils.print_dialog import print_widget_with_dialog
 from services.repair_service import RepairService
 
 logger = logging.getLogger(__name__)
@@ -386,7 +387,7 @@ class PhieuSuaChuaPage(QWidget):
             QMessageBox.warning(
                 self,
                 "Cảnh báo",
-                "Không thể tải danh sách vật tư và tiền công từ database.\n"
+                "Không thể tải danh sách vật tư và tiền công từ database.\n" \
                 "Vui lòng kiểm tra kết nối database.",
             )
 
@@ -491,7 +492,7 @@ class PhieuSuaChuaPage(QWidget):
                 QMessageBox.critical(
                     self,
                     "Lỗi",
-                    f"Không tìm thấy phiếu tiếp nhận cho xe {data['license_plate']}.\n"
+                    f"Biển số xe: {data['license_plate']}\n"
                     "Vui lòng tiếp nhận xe trước khi tạo phiếu sửa chữa.",
                 )
                 return
@@ -541,7 +542,7 @@ class PhieuSuaChuaPage(QWidget):
                 self.last_repair_id = result.get("repair_id")
                 self._on_reset_clicked()
             else:
-                QMessageBox.critical(self, "Lỗi", f"Không thể tạo phiếu sửa chữa:\n{result.get('message')}")
+                QMessageBox.critical(self, "Lỗi", f"Không thể tạo phiếu sửa chữa:\n{result.get("message")}")
 
         except Exception as e:
             logger.error("Error saving repair ticket: %s", e)
@@ -558,12 +559,7 @@ class PhieuSuaChuaPage(QWidget):
         self.last_repair_id = None
 
     def _on_print_clicked(self):
-        data = self.get_form_data()
-        QMessageBox.information(
-            self,
-            "In phiếu (demo)",
-            f"Phiếu sửa chữa\nBiển số: {data['license_plate']}\nNgày: {data['repair_date']}\nTổng: {self._fmt_money(data['total'])}",
-        )
+        print_widget_with_dialog(self, self, "In phieu sua chua")
 
     # ---------------- Lookups ----------------
     def _find_supply_price(self, name: str) -> int:
@@ -587,3 +583,9 @@ class PhieuSuaChuaPage(QWidget):
             return int((s or "0").replace(",", "").strip())
         except ValueError:
             return 0
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-# src/presentation/views/pages/bao_cao_doanh_so_page.py
+﻿# src/presentation/views/pages/bao_cao_doanh_so_page.py
 
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.style import STYLE
+from utils.print_dialog import print_widget_with_dialog
 from services.revenue_report_service import RevenueReportService
 
 
@@ -138,7 +139,6 @@ class BaoCaoDoanhSoPage(QWidget):
         result_layout.addLayout(total_row)
 
         container_layout.addWidget(group_result)
-
         root.addWidget(container)
         root.addStretch(1)
 
@@ -147,7 +147,7 @@ class BaoCaoDoanhSoPage(QWidget):
         self.cb_month.setCurrentIndex(today.month() - 1)
         self.inp_year.setText(str(today.year()))
 
-    # ---------------- Actions ----------------
+        # ---------------- Actions ----------------
     def _on_build_clicked(self):
         year_text = self.inp_year.text().strip()
         if not year_text:
@@ -156,30 +156,27 @@ class BaoCaoDoanhSoPage(QWidget):
 
         month = int(self.cb_month.currentText())
         year = int(year_text)
-        
+
         try:
-            # Get or create report from database
             report = self.service.get_or_create_monthly_report(month, year)
-            
-            # Transform data for rendering
             data = [
                 {
-                    'brand': detail['brand_name'],
-                    'count': detail['count'],
-                    'amount': detail['total_money']
+                    "brand": detail["brand_name"],
+                    "count": detail["count"],
+                    "amount": detail["total_money"],
                 }
-                for detail in report['details']
+                for detail in report["details"]
             ]
-            
+
             self._render_report(data)
-            
+
             if not data:
                 QMessageBox.information(
                     self,
                     "Thông báo",
                     f"Không có dữ liệu sửa chữa trong tháng {month}/{year}."
                 )
-            
+
         except Exception as e:
             QMessageBox.critical(
                 self,
@@ -196,8 +193,7 @@ class BaoCaoDoanhSoPage(QWidget):
         if self.table.rowCount() == 0:
             QMessageBox.information(self, "In báo cáo (demo)", "Chưa có dữ liệu để in. Hãy lập báo cáo trước.")
             return
-        QMessageBox.information(self, "In báo cáo (demo)", "Chức năng in báo cáo sẽ làm sau (QPrinter).")
-
+        print_widget_with_dialog(self, self, "In báo cáo doanh thu")
     # ---------------- Render ----------------
     def _render_report(self, rows: list[dict]):
         self.table.setRowCount(0)
@@ -231,3 +227,4 @@ class BaoCaoDoanhSoPage(QWidget):
 
     def _fmt_money(self, v: int) -> str:
         return f"{v:,}"
+
