@@ -1,152 +1,94 @@
-# Auto Garage Management System
+# Auto Garage Management
 
-A PyQt6 desktop application for managing an auto garage business.
+PyQt6 desktop app for running an auto garage: vehicle intake, repairs, inventory, billing, and reports.
 
 ## Features
+- Role-based access (ADMIN, STAFF)
+- Vehicle reception, repair orders, lookups
+- Payment receipts and revenue reports
+- Inventory (stock) reports with stored procedures
+- Category/config management and user management
 
-- User authentication with role-based access control
-- Vehicle reception management (Tiep nhan xe)
-- Repair order management (Phieu sua chua)
-- Vehicle lookup (Tra cuu xe)
-- Payment receipts (Phieu thu)
-- Revenue reports (Bao cao doanh so)
-- Inventory reports (Bao cao ton)
-- Category management (Quan ly danh muc)
-- System configuration (Thay doi quy dinh)
-- User management (Quan ly user)
+## Tech Stack
+- Python 3.10+
+- PyQt6 UI
+- MySQL 8.0 (portable bundled or system)
+- mysql-connector-python, python-dotenv
+- Packaging: PyInstaller + Inno Setup (Windows)
 
-## Roles
+## Prerequisites (dev)
+- Python 3.10+
+- MySQL 8.0 reachable on your host (if not using the bundled portable server)
 
-- **ADMIN**: Full access to all features
-- **STAFF**: Access to vehicle reception, repair orders, vehicle lookup, and payment receipts only
-
-## Requirements
-
-- Python 3.10 or higher
-- PyQt6
-- MySQL Server 8.0 or higher
-- mysql-connector-python
-- python-dotenv
-
-## Installation
-
-### 1. Install MySQL Server
-
-Make sure you have MySQL Server installed and running on your machine.
-
-### 2. Create Database
-
-Run the SQL scripts to create the database and tables:
-
+## Setup for Development
+1) Create venv and install deps:
 ```bash
-# Connect to MySQL
-mysql -u root -p
-
-# Create database and tables
-mysql -u root -p < database/TABLE+trigger.sql
-
-# Insert sample data (optional)
+python -m venv .venv
+.venv\\Scripts\\activate
+pip install -e .
+```
+2) Database: create schema and sample data on MySQL:
+```bash
+# create DB, tables, triggers, procedures
+mysql -u root -p < database/init.sql
+# optional sample data
 mysql -u root -p < database/data.sql
 ```
-
-### 3. Configure Database Connection
-
-Copy the `.env.example` file to `.env` and update with your database credentials:
-
+3) Configure env (copy and edit):
 ```bash
 cp .env.example .env
 ```
+Update `.env` with your DB host/port/user/password/name (defaults: host localhost, port 3306, user root, db GarageManagement).
 
-Edit `.env` file:
-
-```env
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=your_mysql_password
-DB_NAME=GarageManagement
-```
-
-### 4. Create a virtual environment
-
+4) Run the app (dev):
 ```bash
-# Windows
-python -m venv venv
-venv\Scripts\activate
-
-# macOS/Linux
-python3 -m venv venv
-source venv/bin/activate
+python src/main.py
 ```
 
-### 5. Install dependencies
-
+## Windows Packaging (with portable MySQL)
+1) Prepare MySQL portable: download MySQL 8.0 x64 ZIP and extract **contents** into `packaging/mysql/` so that `packaging/mysql/bin/mysqld.exe` exists (not nested).
+2) Build executable:
 ```bash
-pip install mysql-connector-python python-dotenv PyQt6
+python -m PyInstaller packaging/auto_garage.spec
 ```
-
-Or install from pyproject.toml:
-
+Output: `dist/AutoGarage/AutoGarage.exe` plus `_internal/` data.
+3) Build installer:
 ```bash
-pip install -e .
+iscc packaging/installer.iss
 ```
+Output: `packaging/installer_output/AutoGarageSetup.exe`.
+4) Runtime notes (portable MySQL):
+- Runs on `127.0.0.1:3307`, user `root`, no password.
+- Data stored at `%LOCALAPPDATA%\AutoGarageManagement\mysql`.
+- To reset/force re-init (e.g., after schema changes), delete that folder and rerun the app.
+- If portable MySQL is missing, the app falls back to system MySQL and uses `.env` / env vars.
 
-## Running the Application
-
-```bash
-cd src
-python main.py
-```
-
-## Packaging (Windows Installer + Portable MySQL)
-
-See `packaging/README.md` for the full step-by-step setup.
-
-## Test Credentials
-
+## Test Accounts
 | Username | Password | Role  |
 |----------|----------|-------|
 | admin    | admin    | ADMIN |
 | staff    | staff    | STAFF |
 
 ## Project Structure
-
 ```
 auto-garage-management/
-    pyproject.toml
-    README.md
-    src/
-        main.py
-        app/
-            __init__.py
-            session.py
-        presentation/
-            __init__.py
-            permissions.py
-            views/
-                __init__.py
-                login_dialog.py
-                main_window.py
-                pages/
-                    __init__.py
-                    tiep_nhan_xe_page.py
-                    phieu_sua_chua_page.py
-                    tra_cuu_xe_page.py
-                    phieu_thu_page.py
-                    bao_cao_doanh_so_page.py
-                    bao_cao_ton_page.py
-                    quan_ly_danh_muc_page.py
-                    thay_doi_quy_dinh_page.py
-                    quan_ly_user_page.py
-            controllers/
-                __init__.py
-                login_controller.py
-                main_controller.py
-        utils/
-            __init__.py
-            messages.py
+├───.venv
+├───build
+├───database
+├───dist
+│   └───AutoGarage
+├───packaging
+│   ├───installer_output
+│   └───mysql
+└───src
+    ├───app
+    ├───presentation
+    │   ├───controllers
+    │   ├───views
+    │   │   └───pages
+    ├───services
+    └───utils
 ```
 
 ## License
-
-MIT License
+MIT
