@@ -174,6 +174,71 @@ CREATE TABLE SUPPLIES_IMPORT (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
+DELIMITER //
+DROP TRIGGER IF EXISTS trg_CheckMaxCarReception //
+CREATE TRIGGER trg_CheckMaxCarReception
+BEFORE INSERT ON CAR_RECEPTION
+FOR EACH ROW
+BEGIN
+    DECLARE max_cars INT;
+    DECLARE current_cars INT;
+
+    -- 1. Lấy giá trị từ bảng PARAMETER của bạn (cột name, value)
+    SELECT value INTO max_cars
+    FROM PARAMETER 
+    WHERE name = 'MaxCarReception';
+
+    -- 2. Đếm số xe đã tiếp nhận trong ngày
+    SELECT COUNT(*) INTO current_cars
+    FROM CAR_RECEPTION
+    WHERE ReceptionDate = NEW.ReceptionDate;
+
+    -- 3. Kiểm tra: Nếu số xe hiện tại >= giới hạn thì báo lỗi
+    IF current_cars >= max_cars THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lỗi: Số lượng xe tiếp nhận trong ngày đã vượt quá quy định (MaxCarReception).';
+    END IF;
+END //
+DELIMITER ;
+DELIMITER //
+
+DROP TRIGGER IF EXISTS trg_CheckPaymentLimit //
+
+CREATE TRIGGER trg_CheckPaymentLimit
+BEFORE INSERT ON RECEIPT
+FOR EACH ROW
+BEGIN
+    DECLARE current_debt DECIMAL(15, 2);
+    DECLARE is_over_pay INT;
+    -- 1. Lấy quy định IsOverPay từ bảng PARAMETER
+    SELECT value INTO is_over_pay
+    FROM PARAMETER 
+    WHERE name = 'IsOverPay';
+    -- 2. Lấy số nợ hiện tại của xe
+    SELECT Debt INTO current_debt
+    FROM CAR_RECEPTION
+    WHERE ReceptionId = NEW.ReceptionId;
+    -- 3. Kiểm tra logic
+    -- Nếu không cho phép thu quá (is_over_pay = 0) VÀ Tiền thu (MoneyAmount) > Nợ (Debt)
+    IF (is_over_pay = 0) AND (NEW.MoneyAmount > current_debt) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lỗi: Số tiền thu vượt quá số tiền khách đang nợ.';
+    END IF;
+END //
+DELIMITER ;
+DELIMITER //
+DROP TRIGGER IF EXISTS trg_UpdateDebtAfterReceipt //
+CREATE TRIGGER trg_UpdateDebtAfterReceipt
+AFTER INSERT ON RECEIPT
+FOR EACH ROW
+BEGIN
+    -- Trừ số tiền nợ trong bảng tiếp nhận tương ứng với số tiền vừa thu
+    UPDATE CAR_RECEPTION
+    SET Debt = Debt - NEW.MoneyAmount
+    WHERE ReceptionId = NEW.ReceptionId;
+END //
+DELIMITER ;
+
 --
 -- Insert data after all table and trigger definitions
 --
@@ -214,20 +279,174 @@ INSERT INTO `wage` VALUES (1,'Thay nhớt máy',50000.00),(2,'Rửa xe bọt tuy
 /*!40000 ALTER TABLE `wage` ENABLE KEYS */;
 UNLOCK TABLES;
 
---
--- Dumping routines for database 'garagemanagement'
---
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+DELIMITER //
 
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+-- Xóa procedure cũ nếu tồn tại
+DROP PROCEDURE IF EXISTS sp_CreateStockReport //
 
--- Dump completed on 2025-12-22 17:48:48
+-- Tạo stored procedure
+CREATE PROCEDURE sp_CreateStockReport(
+    IN p_month INT,              -- D1: Tháng báo cáo (1-12)
+    IN p_year INT,               -- D1: Năm báo cáo
+    OUT p_report_id INT          -- ID báo cáo được tạo (OUT parameter)
+)
+BEGIN
+    DECLARE v_existing_report_id INT DEFAULT NULL;
+    DECLARE v_prev_month INT;
+    DECLARE v_prev_year INT;
+    
+    -- ===============================================
+    -- Tính tháng trước để lấy Tồn Đầu (từ D3)
+    -- ===============================================
+    IF p_month = 1 THEN
+        SET v_prev_month = 12;
+        SET v_prev_year = p_year - 1;
+    ELSE
+        SET v_prev_month = p_month - 1;
+        SET v_prev_year = p_year;
+    END IF;
+    
+    -- ===============================================
+    -- 1. Kiểm tra báo cáo đã tồn tại → Xóa để tạo lại
+    -- ===============================================
+    SELECT StockReportId INTO v_existing_report_id
+    FROM STOCK_REPORT
+    WHERE ReportMonth = p_month AND ReportYear = p_year
+    LIMIT 1;
+    
+    IF v_existing_report_id IS NOT NULL THEN
+        DELETE FROM STOCK_REPORT_DETAILS WHERE StockReportId = v_existing_report_id;
+        DELETE FROM STOCK_REPORT WHERE StockReportId = v_existing_report_id;
+    END IF;
+    
+    -- ===============================================
+    -- 2. Tạo record chính D4: STOCK_REPORT
+    -- ===============================================
+    INSERT INTO STOCK_REPORT (ReportMonth, ReportYear)
+    VALUES (p_month, p_year);
+    
+    SET p_report_id = LAST_INSERT_ID();
+    
+    -- ===============================================
+    -- 3. Tạo chi tiết D4: STOCK_REPORT_DETAILS
+    -- Xử lý D3:
+    --   - Danh mục Vật Tư (SUPPLIES)
+    --   - Tồn Đầu: EndQty tháng trước từ STOCK_REPORT_DETAILS
+    --   - Phát Sinh: SUM(SuppliesAmount) từ REPAIR_DETAILS
+    --   - Tồn Cuối = Tồn Đầu - Phát Sinh
+    -- ===============================================
+    INSERT INTO STOCK_REPORT_DETAILS (StockReportId, SuppliesId, BeginQty, IssueQty, EndQty)
+    SELECT 
+        p_report_id AS StockReportId,
+        s.SuppliesId,
+        -- BeginQty (Tồn Đầu): Lấy từ Tồn Cuối tháng trước hoặc tính ngược từ inventory hiện tại
+        COALESCE(
+            (SELECT srd.EndQty 
+             FROM STOCK_REPORT_DETAILS srd
+             JOIN STOCK_REPORT sr ON srd.StockReportId = sr.StockReportId
+             WHERE sr.ReportMonth = v_prev_month 
+               AND sr.ReportYear = v_prev_year
+               AND srd.SuppliesId = s.SuppliesId
+             LIMIT 1),
+            -- Nếu không có tháng trước: Tồn hiện tại + Phát sinh = Tồn Đầu
+            s.InventoryNumber + COALESCE(issue.total_issued, 0)
+        ) AS BeginQty,
+        -- IssueQty (Phát Sinh): Tổng xuất kho trong tháng từ REPAIR_DETAILS
+        COALESCE(issue.total_issued, 0) AS IssueQty,
+        -- EndQty (Tồn Cuối): Tồn Đầu - Phát Sinh (không có nhập trong hệ thống)
+        COALESCE(
+            (SELECT srd.EndQty 
+             FROM STOCK_REPORT_DETAILS srd
+             JOIN STOCK_REPORT sr ON srd.StockReportId = sr.StockReportId
+             WHERE sr.ReportMonth = v_prev_month 
+               AND sr.ReportYear = v_prev_year
+               AND srd.SuppliesId = s.SuppliesId
+             LIMIT 1),
+            s.InventoryNumber + COALESCE(issue.total_issued, 0)
+        ) - COALESCE(issue.total_issued, 0) AS EndQty
+    FROM SUPPLIES s
+    LEFT JOIN (
+        -- D3: Tính Phát Sinh từ Chi tiết Phiếu Sửa Chữa trong tháng
+        SELECT 
+            rd.SuppliesId,
+            SUM(rd.SuppliesAmount) AS total_issued
+        FROM REPAIR_DETAILS rd
+        JOIN REPAIR r ON rd.RepairId = r.RepairId
+        WHERE MONTH(r.RepairDate) = p_month 
+          AND YEAR(r.RepairDate) = p_year
+        GROUP BY rd.SuppliesId
+    ) issue ON s.SuppliesId = issue.SuppliesId;
+    
+END //
 
+DELIMITER ;
 
+DELIMITER //
 
+-- Xóa procedure cũ nếu tồn tại
+DROP PROCEDURE IF EXISTS sp_CreateRevenueReport //
+
+-- Tạo stored procedure
+CREATE PROCEDURE sp_CreateRevenueReport(
+    IN p_month INT,           -- Tháng báo cáo (1-12)
+    IN p_year INT,            -- Năm báo cáo
+    OUT p_report_id INT       -- ID báo cáo được tạo (OUT parameter)
+)
+BEGIN
+    DECLARE v_total_revenue DECIMAL(15, 2) DEFAULT 0;
+    DECLARE v_existing_report_id INT DEFAULT NULL;
+    
+    -- 1. Kiểm tra xem báo cáo tháng này đã tồn tại chưa
+    SELECT ReportId INTO v_existing_report_id
+    FROM REVENUE_REPORT
+    WHERE ReportMonth = p_month AND ReportYear = p_year
+    LIMIT 1;
+    
+    -- 2. Nếu đã tồn tại -> Xóa báo cáo cũ để tạo lại
+    IF v_existing_report_id IS NOT NULL THEN
+        -- Xóa details trước (do FK constraint)
+        DELETE FROM REVENUE_REPORT_DETAILS WHERE ReportId = v_existing_report_id;
+        -- Xóa báo cáo chính
+        DELETE FROM REVENUE_REPORT WHERE ReportId = v_existing_report_id;
+    END IF;
+    
+    -- 3. Tính tổng doanh thu tháng từ bảng REPAIR
+    SELECT COALESCE(SUM(r.RepairMoney), 0) INTO v_total_revenue
+    FROM REPAIR r
+    WHERE MONTH(r.RepairDate) = p_month 
+      AND YEAR(r.RepairDate) = p_year;
+    
+    -- 4. Tạo record chính trong REVENUE_REPORT
+    INSERT INTO REVENUE_REPORT (ReportMonth, ReportYear, TotalRevenue)
+    VALUES (p_month, p_year, v_total_revenue);
+    
+    -- Lấy ID báo cáo vừa tạo
+    SET p_report_id = LAST_INSERT_ID();
+    
+    -- 5. Tạo chi tiết theo từng hãng xe trong REVENUE_REPORT_DETAILS
+    -- Join: REPAIR -> CAR_RECEPTION -> CAR -> CAR_BRAND
+    -- Chỉ insert các hãng xe có dữ liệu sửa chữa trong tháng
+    INSERT INTO REVENUE_REPORT_DETAILS (ReportId, BrandId, Count, TotalMoney, Rate)
+    SELECT 
+        p_report_id AS ReportId,
+        cb.BrandId,
+        COUNT(r.RepairId) AS Count,
+        COALESCE(SUM(r.RepairMoney), 0) AS TotalMoney,
+        CASE 
+            WHEN v_total_revenue > 0 THEN 
+                ROUND((COALESCE(SUM(r.RepairMoney), 0) / v_total_revenue) * 100, 2)
+            ELSE 0 
+        END AS Rate
+    FROM REPAIR r
+    INNER JOIN CAR_RECEPTION cr ON r.ReceptionId = cr.ReceptionId
+    INNER JOIN CAR c ON cr.LicensePlate = c.LicensePlate
+    INNER JOIN CAR_BRAND cb ON c.BrandId = cb.BrandId
+    WHERE MONTH(r.RepairDate) = p_month 
+      AND YEAR(r.RepairDate) = p_year
+    GROUP BY cb.BrandId, cb.BrandName
+    HAVING COUNT(r.RepairId) > 0
+    ORDER BY TotalMoney DESC;
+    
+END //
+
+DELIMITER ;
