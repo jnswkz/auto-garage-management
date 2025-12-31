@@ -205,3 +205,46 @@ BEGIN
     WHERE ReceptionId = NEW.ReceptionId;
 END //
 DELIMITER ;
+
+-- Trigger: Xóa hiệu xe sẽ xóa cascade các xe liên quan
+DELIMITER //
+DROP TRIGGER IF EXISTS trg_DeleteCarBrand //
+CREATE TRIGGER trg_DeleteCarBrand
+BEFORE DELETE ON CAR_BRAND
+FOR EACH ROW
+BEGIN
+    -- Xóa chi tiết phiếu sửa chữa của các xe thuộc hiệu này
+    DELETE FROM REPAIR_DETAILS 
+    WHERE RepairId IN (
+        SELECT r.RepairId FROM REPAIR r
+        JOIN CAR_RECEPTION cr ON r.ReceptionId = cr.ReceptionId
+        JOIN CAR c ON cr.LicensePlate = c.LicensePlate
+        WHERE c.BrandId = OLD.BrandId
+    );
+    
+    -- Xóa phiếu sửa chữa của các xe thuộc hiệu này
+    DELETE FROM REPAIR 
+    WHERE ReceptionId IN (
+        SELECT cr.ReceptionId FROM CAR_RECEPTION cr
+        JOIN CAR c ON cr.LicensePlate = c.LicensePlate
+        WHERE c.BrandId = OLD.BrandId
+    );
+    
+    -- Xóa phiếu thu của các xe thuộc hiệu này
+    DELETE FROM RECEIPT 
+    WHERE ReceptionId IN (
+        SELECT cr.ReceptionId FROM CAR_RECEPTION cr
+        JOIN CAR c ON cr.LicensePlate = c.LicensePlate
+        WHERE c.BrandId = OLD.BrandId
+    );
+    
+    -- Xóa lượt tiếp nhận của các xe thuộc hiệu này
+    DELETE FROM CAR_RECEPTION 
+    WHERE LicensePlate IN (
+        SELECT LicensePlate FROM CAR WHERE BrandId = OLD.BrandId
+    );
+    
+    -- Xóa tất cả xe thuộc hiệu này
+    DELETE FROM CAR WHERE BrandId = OLD.BrandId;
+END //
+DELIMITER ;
